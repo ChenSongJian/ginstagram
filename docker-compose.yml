@@ -5,6 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: ginstagram-backend
     ports:
       - "8080:8080"
     expose:
@@ -12,20 +13,34 @@ services:
     restart: always
     environment:
       - DB_HOST=db
-      - DB_PORT=5432
+      - DB_PORT=${DB_PORT}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
     depends_on:
       - db
+    networks:
+      ginstagram-static-network:
+        ipv4_address: 172.20.0.201
 
   db:
+    container_name: ginstagram-db
     image: postgres:alpine3.19
     ports:
       - "5432:5432"
     expose:
       - "5432"
+    restart: always
     environment:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
       - POSTGRES_DB=${DB_NAME}
+    networks:
+      ginstagram-static-network:
+        ipv4_address: 172.20.0.200
+
+networks:
+  ginstagram-static-network:
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
