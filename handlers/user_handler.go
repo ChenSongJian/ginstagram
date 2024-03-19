@@ -18,6 +18,13 @@ type UserRegisterReq struct {
 	Email    string `json:"email" binding:"required,email"`
 }
 
+type UserUpdateReq struct {
+	Username        string `json:"username" binding:"required"`
+	Bio             string `json:"bio" binding:"required"`
+	ProfileImageUrl string `json:"profile_image_url" binding:"required"`
+	IsPrivate       bool   `json:"is_private"`
+}
+
 type UserLoginReq struct {
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required"`
@@ -116,6 +123,61 @@ func GetUserById(userService services.UserService) gin.HandlerFunc {
 			Bio:             user.Bio,
 			ProfileImageUrl: user.ProfileImageUrl,
 			IsPrivate:       user.IsPrivate,
+		}
+		c.JSON(http.StatusOK, userResponse)
+	}
+}
+
+func UpdateUser(userService services.UserService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tokenUser, exists := c.Get("tokenUser")
+		if !exists {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "user not found in token"})
+			return
+		}
+		modelTokenUser, ok := tokenUser.(models.User)
+		if !ok {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid token user type"})
+			return
+		}
+		userIdStr := c.Param("userId")
+		userId, err := strconv.Atoi(userIdStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+			return
+		}
+		if userId != modelTokenUser.Id {
+			c.JSON(http.StatusForbidden, gin.H{"error": "no permission to update user info"})
+			return
+		}
+
+		var req UserUpdateReq
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		modelTokenUser.Username = req.Username
+		modelTokenUser.Bio = req.Bio
+		modelTokenUser.ProfileImageUrl = req.ProfileImageUrl
+		modelTokenUser.IsPrivate = req.IsPrivate
+
+		if err := userService.UpdateByModel(modelTokenUser); err != nil {
+			if err.Error() == "record not found" {
+				c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		userResponse := UserResponse{
+			Id:              modelTokenUser.Id,
+			Username:        modelTokenUser.Username,
+			Email:           modelTokenUser.Email,
+			Bio:             modelTokenUser.Bio,
+			ProfileImageUrl: modelTokenUser.ProfileImageUrl,
+			IsPrivate:       modelTokenUser.IsPrivate,
 		}
 		c.JSON(http.StatusOK, userResponse)
 	}

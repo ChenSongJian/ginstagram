@@ -91,3 +91,11 @@ func (userService *MockUserService) GetByEmail(email string) (models.User, error
 	}
 	return models.User{}, errors.New("record not found")
 }
+
+func (userService *MockUserService) UpdateByModel(user models.User) error {
+	if _, ok := userService.Users[user.Email]; ok {
+		userService.Users[user.Email] = user
+		return nil
+	}
+	return errors.New("record not found")
+}

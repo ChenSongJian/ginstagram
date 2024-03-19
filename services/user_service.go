@@ -16,6 +16,7 @@ type UserService interface {
 	List(pageNum string, pageSize string, keyword string) ([]models.User, utils.PageResponse, error)
 	GetById(userId int) (models.User, error)
 	GetByEmail(email string) (models.User, error)
+	UpdateByModel(user models.User) error
 }
 
 type DBUserService struct {
@@ -73,4 +74,14 @@ func (userService DBUserService) GetByEmail(email string) (models.User, error) {
 	var user models.User
 	result := userService.db.Where("email = ?", email).First(&user)
 	return user, result.Error
+}
+
+func (userService DBUserService) UpdateByModel(modelUser models.User) error {
+	var user models.User
+	result := userService.db.First(&user, modelUser.Id)
+	if result.Error != nil {
+		return result.Error
+	}
+	result = userService.db.Save(&modelUser)
+	return result.Error
 }

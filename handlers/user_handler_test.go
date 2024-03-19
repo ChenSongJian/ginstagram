@@ -332,6 +332,296 @@ func TestGetUserById_Success(t *testing.T) {
 	}
 }
 
+func TestUpdateUser_MissingToken(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+
+	context, _ := gin.CreateTestContext(response)
+	context.Params = []gin.Param{
+		{
+			Key:   "userId",
+			Value: "1",
+		},
+	}
+	jsonBody, err := json.Marshal(map[string]string{
+		"username": "username",
+	})
+	if err != nil {
+		t.Errorf("Error marshaling request body: %v", err)
+		return
+	}
+	context.Request, _ = http.NewRequest("PUT", "/", bytes.NewReader(jsonBody))
+	context.Request.Header.Set("Content-Type", "application/json")
+	middlewares.AuthMiddleware()(context)
+	handlers.UpdateUser(mockUserService)(context)
+	if response.Code != http.StatusUnauthorized {
+		t.Errorf("Expected status code %d, got %d", http.StatusUnauthorized, response.Code)
+	}
+	expectedResponseBodyString := "user not found in token"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestUpdateUser_InvalidToken(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+
+	context, _ := gin.CreateTestContext(response)
+	context.Params = []gin.Param{
+		{
+			Key:   "userId",
+			Value: "1",
+		},
+	}
+	jsonBody, err := json.Marshal(map[string]string{
+		"username": "username",
+	})
+	if err != nil {
+		t.Errorf("Error marshaling request body: %v", err)
+		return
+	}
+	context.Request, _ = http.NewRequest("PUT", "/", bytes.NewReader(jsonBody))
+	context.Request.Header.Set("Content-Type", "application/json")
+	context.Request.Header.Set("Authorization", "Bearer invalidToken")
+	middlewares.AuthMiddleware()(context)
+	handlers.UpdateUser(mockUserService)(context)
+	if response.Code != http.StatusUnauthorized {
+		t.Errorf("Expected status code %d, got %d", http.StatusUnauthorized, response.Code)
+	}
+	expectedResponseBodyString := "user not found in token"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestUpdateUser_InvalidUserId(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+
+	context, _ := gin.CreateTestContext(response)
+	context.Params = []gin.Param{
+		{
+			Key:   "userId",
+			Value: "user",
+		},
+	}
+	jsonBody, err := json.Marshal(map[string]string{
+		"username": "username",
+	})
+	if err != nil {
+		t.Errorf("Error marshaling request body: %v", err)
+		return
+	}
+	context.Request, _ = http.NewRequest("PUT", "/", bytes.NewReader(jsonBody))
+	context.Request.Header.Set("Content-Type", "application/json")
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+	middlewares.AuthMiddleware()(context)
+	handlers.UpdateUser(mockUserService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "invalid user id"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestUpdateUser_DifferentUserIdAndTokenUserId(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+
+	context, _ := gin.CreateTestContext(response)
+	context.Params = []gin.Param{
+		{
+			Key:   "userId",
+			Value: "2",
+		},
+	}
+	jsonBody, err := json.Marshal(map[string]string{
+		"username": "username",
+	})
+	if err != nil {
+		t.Errorf("Error marshaling request body: %v", err)
+		return
+	}
+	context.Request, _ = http.NewRequest("PUT", "/", bytes.NewReader(jsonBody))
+	context.Request.Header.Set("Content-Type", "application/json")
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+	middlewares.AuthMiddleware()(context)
+	handlers.UpdateUser(mockUserService)(context)
+	if response.Code != http.StatusForbidden {
+		t.Errorf("Expected status code %d, got %d", http.StatusForbidden, response.Code)
+	}
+	expectedResponseBodyString := "no permission to update user info"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestUpdateUser_MiisingRequiredField(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+
+	context, _ := gin.CreateTestContext(response)
+	context.Params = []gin.Param{
+		{
+			Key:   "userId",
+			Value: "1",
+		},
+	}
+	jsonBody, err := json.Marshal(map[string]string{
+		"username": "username",
+	})
+	if err != nil {
+		t.Errorf("Error marshaling request body: %v", err)
+		return
+	}
+	context.Request, _ = http.NewRequest("PUT", "/", bytes.NewReader(jsonBody))
+	context.Request.Header.Set("Content-Type", "application/json")
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+	middlewares.AuthMiddleware()(context)
+	handlers.UpdateUser(mockUserService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "Error:Field validation for 'Bio' failed on the 'required' tag"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestUpdateUser_UserNotFound(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	mockUserService.Users["test@email.com"] = models.User{
+		Id: 2,
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+
+	context, _ := gin.CreateTestContext(response)
+	context.Params = []gin.Param{
+		{
+			Key:   "userId",
+			Value: "1",
+		},
+	}
+	jsonBody, err := json.Marshal(map[string]interface{}{
+		"username":          "username",
+		"bio":               "bio",
+		"profile_image_url": "profile_image_url",
+		"is_private":        true,
+	})
+	if err != nil {
+		t.Errorf("Error marshaling request body: %v", err)
+		return
+	}
+	context.Request, _ = http.NewRequest("PUT", "/", bytes.NewReader(jsonBody))
+	context.Request.Header.Set("Content-Type", "application/json")
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+	middlewares.AuthMiddleware()(context)
+	handlers.UpdateUser(mockUserService)(context)
+	if response.Code != http.StatusNotFound {
+		t.Errorf("Expected status code %d, got %d", http.StatusNotFound, response.Code)
+	}
+	expectedResponseBodyString := "user not found"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestUpdateUser_Success(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	mockUserService.Users[testUser.Email] = testUser
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+
+	context, _ := gin.CreateTestContext(response)
+	context.Params = []gin.Param{
+		{
+			Key:   "userId",
+			Value: "1",
+		},
+	}
+	jsonBody, err := json.Marshal(map[string]interface{}{
+		"username":          "username",
+		"bio":               "bio",
+		"profile_image_url": "profile_image_url",
+		"is_private":        true,
+	})
+	if err != nil {
+		t.Errorf("Error marshaling request body: %v", err)
+		return
+	}
+	context.Request, _ = http.NewRequest("PUT", "/", bytes.NewReader(jsonBody))
+	context.Request.Header.Set("Content-Type", "application/json")
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+	middlewares.AuthMiddleware()(context)
+	handlers.UpdateUser(mockUserService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	var responseBody handlers.UserResponse
+	err = json.Unmarshal(response.Body.Bytes(), &responseBody)
+	if err != nil {
+		t.Errorf("Error unmarshaling response body: %v", err)
+		return
+	}
+	if responseBody.Id != testUser.Id || responseBody.Username != "username" ||
+		responseBody.Email != testUser.Email || responseBody.Bio != "bio" ||
+		responseBody.ProfileImageUrl != "profile_image_url" || responseBody.IsPrivate != true {
+		t.Errorf("Expected response body %v, got %v", testUser, responseBody)
+	}
+}
+
 func TestLoginUser_MissingRequiredField(t *testing.T) {
 	mockUserService := mocks.NewMockUserService()
 	response := httptest.NewRecorder()
@@ -520,55 +810,19 @@ func TestLogoutUser_InvalidToken(t *testing.T) {
 }
 
 func TestLogoutUser_TokenUserNotFound(t *testing.T) {
-	// register user
 	mockUserService := mocks.NewMockUserService()
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
 	response := httptest.NewRecorder()
 	context, _ := gin.CreateTestContext(response)
-	jsonBody, err := json.Marshal(map[string]string{
-		"username": "username",
-		"email":    "email@example.com",
-		"password": "Password123",
-	})
-	if err != nil {
-		t.Errorf("Error marshaling request body: %v", err)
-		return
-	}
-	context.Request, _ = http.NewRequest("POST", "/", bytes.NewReader(jsonBody))
-	context.Request.Header.Set("Content-Type", "application/json")
-	handlers.RegisterUser(mockUserService)(context)
-	if response.Code != http.StatusOK {
-		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
-	}
-
-	// login user to get token
-	jsonBody, err = json.Marshal(map[string]string{
-		"email":    "email@example.com",
-		"password": "Password123",
-	})
-	if err != nil {
-		t.Errorf("Error marshaling request body: %v", err)
-		return
-	}
-	response = httptest.NewRecorder()
-	context, _ = gin.CreateTestContext(response)
-	context.Request, _ = http.NewRequest("POST", "/", bytes.NewReader(jsonBody))
-	context.Request.Header.Set("Content-Type", "application/json")
-	handlers.LoginUser(mockUserService)(context)
-	if response.Code != http.StatusOK {
-		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
-	}
-	var responseBody map[string]string
-	err = json.Unmarshal(response.Body.Bytes(), &responseBody)
-	if err != nil {
-		t.Errorf("Error unmarshaling response body: %v", err)
-		return
-	}
-	token := responseBody["token"]
-	// remove user from "DB"
-	delete(mockUserService.Users, "email@example.com")
-	// logout user
-	response = httptest.NewRecorder()
-	context, _ = gin.CreateTestContext(response)
 	context.Request, _ = http.NewRequest("POST", "/", nil)
 	context.Request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 	middlewares.AuthMiddleware()(context)
@@ -584,53 +838,20 @@ func TestLogoutUser_TokenUserNotFound(t *testing.T) {
 }
 
 func TestLogoutUser_Success(t *testing.T) {
-	// register user
 	mockUserService := mocks.NewMockUserService()
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+	mockUserService.Users[testUser.Email] = testUser
 	response := httptest.NewRecorder()
 	context, _ := gin.CreateTestContext(response)
-	jsonBody, err := json.Marshal(map[string]string{
-		"username": "username",
-		"email":    "email@example.com",
-		"password": "Password123",
-	})
-	if err != nil {
-		t.Errorf("Error marshaling request body: %v", err)
-		return
-	}
-	context.Request, _ = http.NewRequest("POST", "/", bytes.NewReader(jsonBody))
-	context.Request.Header.Set("Content-Type", "application/json")
-	handlers.RegisterUser(mockUserService)(context)
-	if response.Code != http.StatusOK {
-		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
-	}
-
-	// login user to get token
-	jsonBody, err = json.Marshal(map[string]string{
-		"email":    "email@example.com",
-		"password": "Password123",
-	})
-	if err != nil {
-		t.Errorf("Error marshaling request body: %v", err)
-		return
-	}
-	response = httptest.NewRecorder()
-	context, _ = gin.CreateTestContext(response)
-	context.Request, _ = http.NewRequest("POST", "/", bytes.NewReader(jsonBody))
-	context.Request.Header.Set("Content-Type", "application/json")
-	handlers.LoginUser(mockUserService)(context)
-	if response.Code != http.StatusOK {
-		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
-	}
-	var responseBody map[string]string
-	err = json.Unmarshal(response.Body.Bytes(), &responseBody)
-	if err != nil {
-		t.Errorf("Error unmarshaling response body: %v", err)
-		return
-	}
-	token := responseBody["token"]
-	// logout user
-	response = httptest.NewRecorder()
-	context, _ = gin.CreateTestContext(response)
 	context.Request, _ = http.NewRequest("POST", "/", nil)
 	context.Request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 	middlewares.AuthMiddleware()(context)
