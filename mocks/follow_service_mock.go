@@ -1,15 +1,17 @@
 package mocks
 
-import "errors"
+import (
+	"errors"
+)
 
 type MockFollowService struct {
-	Follow      map[int]int
+	Follow      map[int][]int
 	UserService MockUserService
 }
 
 func NewMockFollowService() *MockFollowService {
 	return &MockFollowService{
-		Follow:      make(map[int]int),
+		Follow:      make(map[int][]int),
 		UserService: *NewMockUserService(),
 	}
 }
@@ -33,6 +35,6 @@ func (followService *MockFollowService) Create(followerId int, followeeId int) e
 	if _, ok := followService.Follow[followerId]; ok {
 		return errors.New("ERROR: duplicate key value violates unique constraint \"unique_user_follower_pair\"")
 	}
-	followService.Follow[followerId] = followeeId
+	followService.Follow[followerId] = append(followService.Follow[followerId], followeeId)
 	return nil
 }

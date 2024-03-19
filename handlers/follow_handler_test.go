@@ -171,7 +171,7 @@ func TestFollowUser_AlreadyFollowing(t *testing.T) {
 		Email:    "test2@test.com",
 	}
 	mockFollowService.UserService.Users[testUser2.Email] = testUser2
-	mockFollowService.Follow[testUser.Id] = testUser2.Id
+	mockFollowService.Follow[testUser.Id] = append(mockFollowService.Follow[testUser.Id], testUser2.Id)
 	token, err := middlewares.GenerateToken(testUser, true)
 	if err != nil {
 		t.Errorf("Error generating token: %v", err)
@@ -237,7 +237,14 @@ func TestFollowUser_Success(t *testing.T) {
 	if _, ok := mockFollowService.Follow[testUser.Id]; !ok {
 		t.Errorf("Expected follow map to contain key %d, got nil", testUser.Id)
 	}
-	if mockFollowService.Follow[testUser.Id] != testUser2.Id {
-		t.Errorf("Expected follow map value %d, got %d", testUser2.Id, mockFollowService.Follow[testUser.Id])
+	found := false
+	for _, followeeId := range mockFollowService.Follow[testUser.Id] {
+		if followeeId == testUser2.Id {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Expected follow map to contain value %d, got nil", testUser2.Id)
 	}
 }
