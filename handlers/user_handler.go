@@ -59,6 +59,31 @@ func RegisterUser(userService services.UserService) gin.HandlerFunc {
 	}
 }
 
+func ListUsers(userService services.UserService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		pageNum := c.Query("pageNum")
+		pageSize := c.Query("pageSize")
+		keyword := c.Query("keyword")
+		users, pageInfo, err := userService.List(pageNum, pageSize, keyword)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		userResponses := make([]UserResponse, len(users))
+		for i, user := range users {
+			userResponses[i] = UserResponse{
+				Id:              user.Id,
+				Username:        user.Username,
+				Email:           user.Email,
+				Bio:             user.Bio,
+				ProfileImageUrl: user.ProfileImageUrl,
+			}
+		}
+		pageInfo.Data = userResponses
+		c.JSON(http.StatusOK, pageInfo)
+	}
+}
+
 func GetUserById(userService services.UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userIdStr := c.Param("userId")

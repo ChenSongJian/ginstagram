@@ -2,8 +2,12 @@ package mocks
 
 import (
 	"errors"
+	"math"
+	"strconv"
+	"strings"
 
 	"github.com/ChenSongJian/ginstagram/models"
+	"github.com/ChenSongJian/ginstagram/utils"
 )
 
 type MockUserService struct {
@@ -31,4 +35,52 @@ func (userService *MockUserService) GetById(userId int) (models.User, error) {
 		}
 	}
 	return models.User{}, errors.New("record not found")
+}
+
+func (userService *MockUserService) List(pageNum string, pageSize string, keyword string) ([]models.User, utils.PageResponse, error) {
+	pageNumInt, err := strconv.Atoi(pageNum)
+	if err != nil {
+		pageNumInt = 1
+	}
+	pageSizeInt, err := strconv.Atoi(pageSize)
+	if err != nil {
+		pageSizeInt = 10
+	}
+
+	var filteredUsers []models.User
+	for _, user := range userService.Users {
+		if keyword == "" || strings.Contains(user.Username, keyword) || strings.Contains(user.Bio, keyword) {
+			filteredUsers = append(filteredUsers, user)
+		}
+	}
+
+	totalRecords := len(filteredUsers)
+	totalPages := int(math.Ceil(float64(totalRecords) / float64(pageSizeInt)))
+
+	offset := (pageNumInt - 1) * pageSizeInt
+	if offset < 0 {
+		offset = 0
+	}
+
+	if offset >= totalRecords {
+		return []models.User{}, utils.PageResponse{}, nil
+	}
+
+	startIndex := offset
+	endIndex := offset + pageSizeInt
+	if endIndex > totalRecords {
+		endIndex = totalRecords
+	}
+
+	pagedUsers := filteredUsers[startIndex:endIndex]
+
+	pageResponse := utils.PageResponse{
+		PageNum:      pageNumInt,
+		PageSize:     pageSizeInt,
+		TotalPages:   totalPages,
+		TotalRecords: totalRecords,
+		Data:         pagedUsers,
+	}
+
+	return pagedUsers, pageResponse, nil
 }

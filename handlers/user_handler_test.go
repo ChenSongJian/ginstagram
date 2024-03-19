@@ -156,6 +156,96 @@ func TestRegisterUser_DuplicatedEmail(t *testing.T) {
 	}
 }
 
+func TestListUsers_NoUser(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	handlers.ListUsers(mockUserService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	expectedResponseBodyString := "\"total_records\":0"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestListUsers_Success(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	dummyUser := models.User{
+		Id:           1,
+		Username:     "XXXXXXXX",
+		PasswordHash: "PasswordHash",
+		Email:        "Email@example.com",
+	}
+	mockUserService.Create(dummyUser)
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	handlers.ListUsers(mockUserService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	expectedResponseBodyString := "\"total_records\":1"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestListUsers_SuccessWithPagination(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	dummyUser := models.User{
+		Id:           1,
+		Username:     "XXXXXXXX",
+		PasswordHash: "PasswordHash",
+		Email:        "Email@example.com",
+	}
+	mockUserService.Create(dummyUser)
+	dummyUser.Id = 2
+	dummyUser.Email = "Email2@example.com"
+	mockUserService.Create(dummyUser)
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+	context.Request, _ = http.NewRequest("GET", "/?pageNum=1&pageSize=1", nil)
+
+	handlers.ListUsers(mockUserService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	expectedResponseBodyString := "\"total_records\":2"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestListUsers_WithKeyword(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	dummyUser := models.User{
+		Id:           1,
+		Username:     "user1",
+		PasswordHash: "PasswordHash",
+		Email:        "Email@example.com",
+	}
+	mockUserService.Create(dummyUser)
+	dummyUser.Id = 2
+	dummyUser.Username = "user2"
+	dummyUser.Email = "Email2@example.com"
+	mockUserService.Create(dummyUser)
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+	context.Request, _ = http.NewRequest("GET", "/?keyword=user2", nil)
+
+	handlers.ListUsers(mockUserService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	expectedResponseBodyString := "\"total_records\":1"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
 func TestGetUserById_InvalidUserId(t *testing.T) {
 	mockUserService := mocks.NewMockUserService()
 	response := httptest.NewRecorder()
