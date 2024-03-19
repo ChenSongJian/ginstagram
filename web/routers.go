@@ -2,6 +2,7 @@ package web
 
 import (
 	"github.com/ChenSongJian/ginstagram/handlers"
+	"github.com/ChenSongJian/ginstagram/middlewares"
 	"github.com/ChenSongJian/ginstagram/services"
 	"github.com/gin-gonic/gin"
 )
@@ -28,6 +29,7 @@ func NewRouter() *gin.Engine {
 	userV1Group.GET("/", handlers.ListUsers(userService))
 	userV1Group.GET("/:userId", handlers.GetUserById(userService))
 	userV1Group.POST("/login", handlers.LoginUser(userService))
+	userV1Group.POST("/logout", middlewares.AuthMiddleware(), handlers.LogoutUser(userService))
 
 	return r
 }

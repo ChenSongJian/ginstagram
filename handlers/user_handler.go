@@ -151,3 +151,38 @@ func LoginUser(userService services.UserService) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"token": token})
 	}
 }
+
+func LogoutUser(userService services.UserService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tokenUser, exists := c.Get("tokenUser")
+		if !exists {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "user not found in token"})
+			return
+		}
+		modelTokenUser, ok := tokenUser.(models.User)
+		if !ok {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid token user type"})
+			return
+		}
+		var user models.User
+		user, err := userService.GetByEmail(modelTokenUser.Email)
+		if err != nil {
+			if strings.Contains(err.Error(), "record not found") {
+				c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if user.Email != modelTokenUser.Email || user.PasswordHash != modelTokenUser.PasswordHash {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token user"})
+			return
+		}
+		token, err := middlewares.GenerateToken(user, false)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"token": token})
+	}
+}

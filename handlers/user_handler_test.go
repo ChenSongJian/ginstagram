@@ -3,12 +3,14 @@ package handlers_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/ChenSongJian/ginstagram/handlers"
+	"github.com/ChenSongJian/ginstagram/middlewares"
 	"github.com/ChenSongJian/ginstagram/mocks"
 	"github.com/ChenSongJian/ginstagram/models"
 	"github.com/gin-gonic/gin"
@@ -476,6 +478,164 @@ func TestLoginUser_Success(t *testing.T) {
 	context.Request, _ = http.NewRequest("POST", "/", bytes.NewReader(jsonBody))
 	context.Request.Header.Set("Content-Type", "application/json")
 	handlers.LoginUser(mockUserService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	expectedResponseBodyString := "\"token\":\"ey"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestLogoutUser_MissingToken(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	handlers.LogoutUser(mockUserService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "user not found in token"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestLogoutUser_InvalidToken(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	context.Request, _ = http.NewRequest("POST", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer invalidtoken")
+	handlers.LogoutUser(mockUserService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "user not found in token"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestLogoutUser_TokenUserNotFound(t *testing.T) {
+	// register user
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+	jsonBody, err := json.Marshal(map[string]string{
+		"username": "username",
+		"email":    "email@example.com",
+		"password": "Password123",
+	})
+	if err != nil {
+		t.Errorf("Error marshaling request body: %v", err)
+		return
+	}
+	context.Request, _ = http.NewRequest("POST", "/", bytes.NewReader(jsonBody))
+	context.Request.Header.Set("Content-Type", "application/json")
+	handlers.RegisterUser(mockUserService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+
+	// login user to get token
+	jsonBody, err = json.Marshal(map[string]string{
+		"email":    "email@example.com",
+		"password": "Password123",
+	})
+	if err != nil {
+		t.Errorf("Error marshaling request body: %v", err)
+		return
+	}
+	response = httptest.NewRecorder()
+	context, _ = gin.CreateTestContext(response)
+	context.Request, _ = http.NewRequest("POST", "/", bytes.NewReader(jsonBody))
+	context.Request.Header.Set("Content-Type", "application/json")
+	handlers.LoginUser(mockUserService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	var responseBody map[string]string
+	err = json.Unmarshal(response.Body.Bytes(), &responseBody)
+	if err != nil {
+		t.Errorf("Error unmarshaling response body: %v", err)
+		return
+	}
+	token := responseBody["token"]
+	// remove user from "DB"
+	delete(mockUserService.Users, "email@example.com")
+	// logout user
+	response = httptest.NewRecorder()
+	context, _ = gin.CreateTestContext(response)
+	context.Request, _ = http.NewRequest("POST", "/", nil)
+	context.Request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	middlewares.AuthMiddleware()(context)
+
+	handlers.LogoutUser(mockUserService)(context)
+	if response.Code != http.StatusNotFound {
+		t.Errorf("Expected status code %d, got %d", http.StatusNotFound, response.Code)
+	}
+	expectedResponseBodyString := "user not found\""
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestLogoutUser_Success(t *testing.T) {
+	// register user
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+	jsonBody, err := json.Marshal(map[string]string{
+		"username": "username",
+		"email":    "email@example.com",
+		"password": "Password123",
+	})
+	if err != nil {
+		t.Errorf("Error marshaling request body: %v", err)
+		return
+	}
+	context.Request, _ = http.NewRequest("POST", "/", bytes.NewReader(jsonBody))
+	context.Request.Header.Set("Content-Type", "application/json")
+	handlers.RegisterUser(mockUserService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+
+	// login user to get token
+	jsonBody, err = json.Marshal(map[string]string{
+		"email":    "email@example.com",
+		"password": "Password123",
+	})
+	if err != nil {
+		t.Errorf("Error marshaling request body: %v", err)
+		return
+	}
+	response = httptest.NewRecorder()
+	context, _ = gin.CreateTestContext(response)
+	context.Request, _ = http.NewRequest("POST", "/", bytes.NewReader(jsonBody))
+	context.Request.Header.Set("Content-Type", "application/json")
+	handlers.LoginUser(mockUserService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	var responseBody map[string]string
+	err = json.Unmarshal(response.Body.Bytes(), &responseBody)
+	if err != nil {
+		t.Errorf("Error unmarshaling response body: %v", err)
+		return
+	}
+	token := responseBody["token"]
+	// logout user
+	response = httptest.NewRecorder()
+	context, _ = gin.CreateTestContext(response)
+	context.Request, _ = http.NewRequest("POST", "/", nil)
+	context.Request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	middlewares.AuthMiddleware()(context)
+
+	handlers.LogoutUser(mockUserService)(context)
 	if response.Code != http.StatusOK {
 		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
 	}

@@ -78,7 +78,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		c.Set("user", user)
+		c.Set("tokenUser", user)
 		c.Next()
 	}
 }
@@ -89,7 +89,6 @@ func extractUserFromClaims(claims jwt.MapClaims) (models.User, error) {
 	if !ok {
 		return user, errors.New("failed to extract user information")
 	}
-	fmt.Println(claimsUser)
 
 	userId, ok := claimsUser["Id"].(float64)
 	if !ok {
