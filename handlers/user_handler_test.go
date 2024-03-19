@@ -10,6 +10,7 @@ import (
 
 	"github.com/ChenSongJian/ginstagram/handlers"
 	"github.com/ChenSongJian/ginstagram/mocks"
+	"github.com/ChenSongJian/ginstagram/models"
 	"github.com/gin-gonic/gin"
 )
 
@@ -123,13 +124,20 @@ func TestRegisterUser_Success(t *testing.T) {
 
 func TestRegisterUser_DuplicatedEmail(t *testing.T) {
 	mockUserService := mocks.NewMockUserService()
+	duplicateUser := models.User{
+		Username:     "Username",
+		PasswordHash: "Password123",
+		Email:        "Email@example.com",
+	}
+	mockUserService.Create(duplicateUser)
+
 	response := httptest.NewRecorder()
 	context, _ := gin.CreateTestContext(response)
 
 	jsonBody, err := json.Marshal(map[string]string{
 		"username": "Username",
 		"password": "Password123",
-		"Email":    "Email@example.com",
+		"email":    "Email@example.com",
 	})
 	if err != nil {
 		t.Errorf("Error marshaling request body: %v", err)
@@ -142,7 +150,7 @@ func TestRegisterUser_DuplicatedEmail(t *testing.T) {
 	if response.Code != http.StatusBadRequest {
 		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
 	}
-	expectedResponseBodyString := "Email already exists"
+	expectedResponseBodyString := "email already exists"
 	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
 		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
 	}
