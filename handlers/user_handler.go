@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ChenSongJian/ginstagram/middlewares"
 	"github.com/ChenSongJian/ginstagram/models"
 	"github.com/ChenSongJian/ginstagram/services"
 	"github.com/ChenSongJian/ginstagram/utils"
@@ -15,6 +16,11 @@ type UserRegisterReq struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
 	Email    string `json:"email" binding:"required,email"`
+}
+
+type UserLoginReq struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required"`
 }
 
 type UserResponse struct {
@@ -112,5 +118,36 @@ func GetUserById(userService services.UserService) gin.HandlerFunc {
 			IsPrivate:       user.IsPrivate,
 		}
 		c.JSON(http.StatusOK, userResponse)
+	}
+}
+
+func LoginUser(userService services.UserService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req UserLoginReq
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		user, err := userService.GetByEmail(req.Email)
+		if err != nil {
+			if strings.Contains(err.Error(), "record not found") {
+				c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		if !utils.CompareHash(user.PasswordHash, req.Password) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid password"})
+			return
+		}
+		token, err := middlewares.GenerateToken(user, true)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"token": token})
 	}
 }

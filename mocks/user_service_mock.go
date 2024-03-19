@@ -28,15 +28,6 @@ func (userService *MockUserService) Create(user models.User) error {
 	return nil
 }
 
-func (userService *MockUserService) GetById(userId int) (models.User, error) {
-	for _, user := range userService.Users {
-		if user.Id == userId {
-			return user, nil
-		}
-	}
-	return models.User{}, errors.New("record not found")
-}
-
 func (userService *MockUserService) List(pageNum string, pageSize string, keyword string) ([]models.User, utils.PageResponse, error) {
 	pageNumInt, err := strconv.Atoi(pageNum)
 	if err != nil {
@@ -83,4 +74,20 @@ func (userService *MockUserService) List(pageNum string, pageSize string, keywor
 	}
 
 	return pagedUsers, pageResponse, nil
+}
+
+func (userService *MockUserService) GetById(userId int) (models.User, error) {
+	for _, user := range userService.Users {
+		if user.Id == userId {
+			return user, nil
+		}
+	}
+	return models.User{}, errors.New("record not found")
+}
+
+func (userService *MockUserService) GetByEmail(email string) (models.User, error) {
+	if user, ok := userService.Users[email]; ok {
+		return user, nil
+	}
+	return models.User{}, errors.New("record not found")
 }

@@ -329,3 +329,158 @@ func TestGetUserById_Success(t *testing.T) {
 		t.Errorf("Expected response body %v, got %v", dummyUser, responseBody)
 	}
 }
+
+func TestLoginUser_MissingRequiredField(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+	jsonBody, err := json.Marshal(map[string]string{
+		"email": "example@email.com",
+	})
+	if err != nil {
+		t.Errorf("Error marshaling request body: %v", err)
+		return
+	}
+	context.Request, _ = http.NewRequest("POST", "/", bytes.NewReader(jsonBody))
+	context.Request.Header.Set("Content-Type", "application/json")
+	handlers.LoginUser(mockUserService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "Error:Field validation for 'Password' failed on the 'required' tag"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestLoginUser_InvalidEmail(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+	jsonBody, err := json.Marshal(map[string]string{
+		"email":    "email.com",
+		"password": "Password123",
+	})
+	if err != nil {
+		t.Errorf("Error marshaling request body: %v", err)
+		return
+	}
+	context.Request, _ = http.NewRequest("POST", "/", bytes.NewReader(jsonBody))
+	context.Request.Header.Set("Content-Type", "application/json")
+	handlers.LoginUser(mockUserService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "Error:Field validation for 'Email' failed on the 'email' tag"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestLoginUser_EmailNotFound(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+	jsonBody, err := json.Marshal(map[string]string{
+		"email":    "email@example.com",
+		"password": "Password123",
+	})
+	if err != nil {
+		t.Errorf("Error marshaling request body: %v", err)
+		return
+	}
+	context.Request, _ = http.NewRequest("POST", "/", bytes.NewReader(jsonBody))
+	context.Request.Header.Set("Content-Type", "application/json")
+	handlers.LoginUser(mockUserService)(context)
+	if response.Code != http.StatusNotFound {
+		t.Errorf("Expected status code %d, got %d", http.StatusNotFound, response.Code)
+	}
+	expectedResponseBodyString := "user not found"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestLoginUser_InvalidPassword(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+	jsonBody, err := json.Marshal(map[string]string{
+		"username": "username",
+		"email":    "email@example.com",
+		"password": "Password123",
+	})
+	if err != nil {
+		t.Errorf("Error marshaling request body: %v", err)
+		return
+	}
+	context.Request, _ = http.NewRequest("POST", "/", bytes.NewReader(jsonBody))
+	context.Request.Header.Set("Content-Type", "application/json")
+	handlers.RegisterUser(mockUserService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+
+	jsonBody, err = json.Marshal(map[string]string{
+		"email":    "email@example.com",
+		"password": "Password456",
+	})
+	if err != nil {
+		t.Errorf("Error marshaling request body: %v", err)
+		return
+	}
+	response = httptest.NewRecorder()
+	context, _ = gin.CreateTestContext(response)
+	context.Request, _ = http.NewRequest("POST", "/", bytes.NewReader(jsonBody))
+	context.Request.Header.Set("Content-Type", "application/json")
+	handlers.LoginUser(mockUserService)(context)
+	if response.Code != http.StatusUnauthorized {
+		t.Errorf("Expected status code %d, got %d", http.StatusUnauthorized, response.Code)
+	}
+	expectedResponseBodyString := "invalid password"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestLoginUser_Success(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+	jsonBody, err := json.Marshal(map[string]string{
+		"username": "username",
+		"email":    "email@example.com",
+		"password": "Password123",
+	})
+	if err != nil {
+		t.Errorf("Error marshaling request body: %v", err)
+		return
+	}
+	context.Request, _ = http.NewRequest("POST", "/", bytes.NewReader(jsonBody))
+	context.Request.Header.Set("Content-Type", "application/json")
+	handlers.RegisterUser(mockUserService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+
+	jsonBody, err = json.Marshal(map[string]string{
+		"email":    "email@example.com",
+		"password": "Password123",
+	})
+	if err != nil {
+		t.Errorf("Error marshaling request body: %v", err)
+		return
+	}
+	response = httptest.NewRecorder()
+	context, _ = gin.CreateTestContext(response)
+	context.Request, _ = http.NewRequest("POST", "/", bytes.NewReader(jsonBody))
+	context.Request.Header.Set("Content-Type", "application/json")
+	handlers.LoginUser(mockUserService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	expectedResponseBodyString := "\"token\":\"ey"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}

@@ -15,6 +15,7 @@ type UserService interface {
 	Create(user models.User) error
 	List(pageNum string, pageSize string, keyword string) ([]models.User, utils.PageResponse, error)
 	GetById(userId int) (models.User, error)
+	GetByEmail(email string) (models.User, error)
 }
 
 type DBUserService struct {
@@ -65,5 +66,11 @@ func (userService DBUserService) List(pageNum string, pageSize string, keyword s
 func (userService DBUserService) GetById(userId int) (models.User, error) {
 	var user models.User
 	result := userService.db.First(&user, userId)
+	return user, result.Error
+}
+
+func (userService DBUserService) GetByEmail(email string) (models.User, error) {
+	var user models.User
+	result := userService.db.Where("email = ?", email).First(&user)
 	return user, result.Error
 }
