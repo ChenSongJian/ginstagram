@@ -99,3 +99,13 @@ func (userService *MockUserService) UpdateByModel(user models.User) error {
 	}
 	return errors.New("record not found")
 }
+
+func (userService *MockUserService) DeleteById(userId int) error {
+	for _, user := range userService.Users {
+		if user.Id == userId {
+			delete(userService.Users, user.Email)
+			return nil
+		}
+	}
+	return errors.New("record not found")
+}

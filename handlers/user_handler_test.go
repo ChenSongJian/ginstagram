@@ -622,6 +622,197 @@ func TestUpdateUser_Success(t *testing.T) {
 	}
 }
 
+func TestDeleteUser_MissingToken(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+	context.Params = []gin.Param{
+		{
+			Key:   "userId",
+			Value: "1",
+		},
+	}
+	context.Request, _ = http.NewRequest("DELETE", "/", nil)
+	context.Request.Header.Set("Content-Type", "application/json")
+	middlewares.AuthMiddleware()(context)
+	handlers.DeleteUser(mockUserService)(context)
+	if response.Code != http.StatusUnauthorized {
+		t.Errorf("Expected status code %d, got %d", http.StatusUnauthorized, response.Code)
+	}
+	expectedResponseBodyString := "user not found in token"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestDeleteUser_InvalidToken(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+	context.Params = []gin.Param{
+		{
+			Key:   "userId",
+			Value: "1",
+		},
+	}
+	context.Request, _ = http.NewRequest("DELETE", "/", nil)
+	context.Request.Header.Set("Content-Type", "application/json")
+	context.Request.Header.Set("Authorization", "Bearer invalidtoken")
+	middlewares.AuthMiddleware()(context)
+	handlers.DeleteUser(mockUserService)(context)
+	if response.Code != http.StatusUnauthorized {
+		t.Errorf("Expected status code %d, got %d", http.StatusUnauthorized, response.Code)
+	}
+	expectedResponseBodyString := "user not found in token"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestDeleteUser_InvalidUserId(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "userId",
+			Value: "user",
+		},
+	}
+	context.Request, _ = http.NewRequest("DELETE", "/", nil)
+	context.Request.Header.Set("Content-Type", "application/json")
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+	middlewares.AuthMiddleware()(context)
+	handlers.DeleteUser(mockUserService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "invalid user id"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestDeleteUser_DifferentUserIdAndTokenUserId(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "userId",
+			Value: "2",
+		},
+	}
+	context.Request, _ = http.NewRequest("DELETE", "/", nil)
+	context.Request.Header.Set("Content-Type", "application/json")
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+	middlewares.AuthMiddleware()(context)
+	handlers.DeleteUser(mockUserService)(context)
+	if response.Code != http.StatusForbidden {
+		t.Errorf("Expected status code %d, got %d", http.StatusForbidden, response.Code)
+	}
+	expectedResponseBodyString := "no permission to delete user info"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestDeleteUser_UserNotFound(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "userId",
+			Value: "1",
+		},
+	}
+	context.Request, _ = http.NewRequest("DELETE", "/", nil)
+	context.Request.Header.Set("Content-Type", "application/json")
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+	middlewares.AuthMiddleware()(context)
+	handlers.DeleteUser(mockUserService)(context)
+	if response.Code != http.StatusNotFound {
+		t.Errorf("Expected status code %d, got %d", http.StatusNotFound, response.Code)
+	}
+	expectedResponseBodyString := "user not found"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestDeleteUser_Success(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	mockUserService.Users[testUser.Email] = testUser
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "userId",
+			Value: "1",
+		},
+	}
+	context.Request, _ = http.NewRequest("DELETE", "/", nil)
+	context.Request.Header.Set("Content-Type", "application/json")
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+	middlewares.AuthMiddleware()(context)
+	handlers.DeleteUser(mockUserService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	if _, ok := mockUserService.Users[testUser.Email]; ok {
+		t.Errorf("User %v not deleted", testUser)
+	}
+}
+
 func TestLoginUser_MissingRequiredField(t *testing.T) {
 	mockUserService := mocks.NewMockUserService()
 	response := httptest.NewRecorder()

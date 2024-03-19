@@ -132,12 +132,12 @@ func UpdateUser(userService services.UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenUser, exists := c.Get("tokenUser")
 		if !exists {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "user not found in token"})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found in token"})
 			return
 		}
 		modelTokenUser, ok := tokenUser.(models.User)
 		if !ok {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid token user type"})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token user type"})
 			return
 		}
 		userIdStr := c.Param("userId")
@@ -180,6 +180,43 @@ func UpdateUser(userService services.UserService) gin.HandlerFunc {
 			IsPrivate:       modelTokenUser.IsPrivate,
 		}
 		c.JSON(http.StatusOK, userResponse)
+	}
+}
+
+func DeleteUser(userService services.UserService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tokenUser, exists := c.Get("tokenUser")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found in token"})
+			return
+		}
+		modelTokenUser, ok := tokenUser.(models.User)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token user type"})
+			return
+		}
+		userIdStr := c.Param("userId")
+		userId, err := strconv.Atoi(userIdStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+			return
+		}
+		if userId != modelTokenUser.Id {
+			c.JSON(http.StatusForbidden, gin.H{"error": "no permission to delete user info"})
+			return
+		}
+
+		if err := userService.DeleteById(userId); err != nil {
+			if err.Error() == "record not found" {
+				c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
+
 	}
 }
 

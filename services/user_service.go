@@ -17,6 +17,7 @@ type UserService interface {
 	GetById(userId int) (models.User, error)
 	GetByEmail(email string) (models.User, error)
 	UpdateByModel(user models.User) error
+	DeleteById(userId int) error
 }
 
 type DBUserService struct {
@@ -83,5 +84,15 @@ func (userService DBUserService) UpdateByModel(modelUser models.User) error {
 		return result.Error
 	}
 	result = userService.db.Save(&modelUser)
+	return result.Error
+}
+
+func (userService DBUserService) DeleteById(userId int) error {
+	var user models.User
+	result := userService.db.First(&user, userId)
+	if result.Error != nil {
+		return result.Error
+	}
+	result = userService.db.Delete(&user)
 	return result.Error
 }
