@@ -973,6 +973,8 @@ func TestLogoutUser_MissingToken(t *testing.T) {
 	response := httptest.NewRecorder()
 	context, _ := gin.CreateTestContext(response)
 
+	context.Request, _ = http.NewRequest("POST", "/", nil)
+
 	handlers.LogoutUser(mockUserService)(context)
 	if response.Code != http.StatusBadRequest {
 		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
@@ -1048,6 +1050,98 @@ func TestLogoutUser_Success(t *testing.T) {
 	middlewares.AuthMiddleware()(context)
 
 	handlers.LogoutUser(mockUserService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	expectedResponseBodyString := "\"token\":\"ey"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestRefreshToken_MissingToken(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+
+	handlers.RefreshToken(mockUserService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "user not found in token"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestRefreshToken_InvalidToken(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer invalidtoken")
+
+	handlers.RefreshToken(mockUserService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "user not found in token"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestResfreshToken_UserNotFound(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+	middlewares.AuthMiddleware()(context)
+	handlers.RefreshToken(mockUserService)(context)
+	if response.Code != http.StatusNotFound {
+		t.Errorf("Expected status code %d, got %d", http.StatusNotFound, response.Code)
+	}
+	expectedResponseBodyString := "user not found\""
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestResfreshToken_Success(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	mockUserService.Users[testUser.Email] = testUser
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+	middlewares.AuthMiddleware()(context)
+	handlers.RefreshToken(mockUserService)(context)
 	if response.Code != http.StatusOK {
 		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
 	}

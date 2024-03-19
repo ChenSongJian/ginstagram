@@ -285,3 +285,33 @@ func LogoutUser(userService services.UserService) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"token": token})
 	}
 }
+
+func RefreshToken(userService services.UserService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tokenUser, exists := c.Get("tokenUser")
+		if !exists {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "user not found in token"})
+			return
+		}
+		modelTokenUser, ok := tokenUser.(models.User)
+		if !ok {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid token user type"})
+			return
+		}
+		user, err := userService.GetById(modelTokenUser.Id)
+		if err != nil {
+			if strings.Contains(err.Error(), "record not found") {
+				c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		token, err := middlewares.GenerateToken(user, true)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"token": token})
+	}
+}
