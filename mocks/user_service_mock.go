@@ -23,3 +23,12 @@ func (userService *MockUserService) Create(user models.User) error {
 	userService.Users[user.Email] = user
 	return nil
 }
+
+func (userService *MockUserService) GetById(userId int) (models.User, error) {
+	for _, user := range userService.Users {
+		if user.Id == userId {
+			return user, nil
+		}
+	}
+	return models.User{}, errors.New("record not found")
+}

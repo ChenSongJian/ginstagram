@@ -8,6 +8,7 @@ import (
 
 type UserService interface {
 	Create(user models.User) error
+	GetById(userId int) (models.User, error)
 }
 
 type DBUserService struct {
@@ -21,4 +22,10 @@ func NewDBUserService() *DBUserService {
 func (userService DBUserService) Create(user models.User) error {
 	result := userService.db.Create(&user)
 	return result.Error
+}
+
+func (userService DBUserService) GetById(userId int) (models.User, error) {
+	var user models.User
+	result := userService.db.First(&user, userId)
+	return user, result.Error
 }

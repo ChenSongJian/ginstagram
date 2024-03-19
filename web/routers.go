@@ -24,6 +24,7 @@ func NewRouter() *gin.Engine {
 
 	apiV1Group := r.Group("/api/v1")
 	userV1Group := apiV1Group.Group("/user")
+	userV1Group.GET("/:userId", handlers.GetUserById(userService))
 	userV1Group.POST("/", handlers.RegisterUser(userService))
 
 	return r

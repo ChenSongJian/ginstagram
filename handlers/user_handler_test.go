@@ -155,3 +155,87 @@ func TestRegisterUser_DuplicatedEmail(t *testing.T) {
 		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
 	}
 }
+
+func TestGetUserById_InvalidUserId(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+	context.Params = []gin.Param{
+		{
+			Key:   "userId",
+			Value: "invalid_id",
+		},
+	}
+
+	handlers.GetUserById(mockUserService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "invalid user id"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestGetUserById_UserNotFound(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	dummyUser := models.User{
+		Id:           1,
+		Username:     "Username",
+		PasswordHash: "PasswordHash",
+		Email:        "Email@example.com",
+	}
+	mockUserService.Create(dummyUser)
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+	context.Params = []gin.Param{
+		{
+			Key:   "userId",
+			Value: "2",
+		},
+	}
+
+	handlers.GetUserById(mockUserService)(context)
+	if response.Code != http.StatusNotFound {
+		t.Errorf("Expected status code %d, got %d", http.StatusNotFound, response.Code)
+	}
+	expectedResponseBodyString := "user not found"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestGetUserById_Success(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	dummyUser := models.User{
+		Id:           1,
+		Username:     "Username",
+		PasswordHash: "PasswordHash",
+		Email:        "Email@example.com",
+	}
+	mockUserService.Create(dummyUser)
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+	context.Params = []gin.Param{
+		{
+			Key:   "userId",
+			Value: "1",
+		},
+	}
+
+	handlers.GetUserById(mockUserService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	var responseBody handlers.UserResponse
+	err := json.Unmarshal(response.Body.Bytes(), &responseBody)
+	if err != nil {
+		t.Errorf("Error unmarshaling response body: %v", err)
+		return
+	}
+	if responseBody.Id != dummyUser.Id ||
+		responseBody.Username != dummyUser.Username ||
+		responseBody.Email != dummyUser.Email {
+		t.Errorf("Expected response body %v, got %v", dummyUser, responseBody)
+	}
+}
