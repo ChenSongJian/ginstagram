@@ -7,7 +7,6 @@ import (
 )
 
 func TestIsComplex(t *testing.T) {
-	// Test cases for IsComplex function
 	testCases := []struct {
 		password string
 		expected bool
@@ -26,5 +25,40 @@ func TestIsComplex(t *testing.T) {
 		if result != tc.expected {
 			t.Errorf("IsComplex(%s) = %t; expected %t", tc.password, result, tc.expected)
 		}
+	}
+}
+
+func TestGenerateHash(t *testing.T) {
+	password := "Password123"
+	hash := utils.GenerateHash(password)
+	if hash == "" {
+		t.Errorf("GenerateHash(%s) returned empty string", password)
+	}
+
+	samePassword := "Password123"
+	diffHash := utils.GenerateHash(samePassword)
+	if hash == diffHash {
+		t.Errorf("GenerateHsh should returned different hash for same password")
+	}
+
+	diffPassword := "Password456"
+	diffHash = utils.GenerateHash(diffPassword)
+	if hash == diffHash {
+		t.Errorf("GenerateHash should returned different hash for different password")
+	}
+}
+
+func TestCompareHash(t *testing.T) {
+	password := "Password123"
+	hash := utils.GenerateHash(password)
+	result := utils.CompareHash(hash, password)
+	if !result {
+		t.Errorf("CompareHash(hash, password) returned false")
+	}
+
+	diffPassword := "Password456"
+	result = utils.CompareHash(hash, diffPassword)
+	if result {
+		t.Errorf("CompareHash(hash, diffPassword) returned true")
 	}
 }
