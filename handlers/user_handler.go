@@ -23,6 +23,7 @@ type UserResponse struct {
 	Email           string `json:"email"`
 	Bio             string `json:"bio"`
 	ProfileImageUrl string `json:"profile_image_url"`
+	IsPrivate       bool   `json:"is_private"`
 }
 
 func RegisterUser(userService services.UserService) gin.HandlerFunc {
@@ -77,6 +78,7 @@ func ListUsers(userService services.UserService) gin.HandlerFunc {
 				Email:           user.Email,
 				Bio:             user.Bio,
 				ProfileImageUrl: user.ProfileImageUrl,
+				IsPrivate:       user.IsPrivate,
 			}
 		}
 		pageInfo.Data = userResponses
@@ -107,6 +109,7 @@ func GetUserById(userService services.UserService) gin.HandlerFunc {
 			Email:           user.Email,
 			Bio:             user.Bio,
 			ProfileImageUrl: user.ProfileImageUrl,
+			IsPrivate:       user.IsPrivate,
 		}
 		c.JSON(http.StatusOK, userResponse)
 	}

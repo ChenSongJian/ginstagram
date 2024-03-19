@@ -9,6 +9,7 @@ type User struct {
 	Username        string
 	PasswordHash    string
 	Email           string
+	IsPrivate       bool
 	Bio             string
 	ProfileImageUrl string
 }

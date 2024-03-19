@@ -116,5 +116,9 @@ func extractUserFromClaims(claims jwt.MapClaims) (models.User, error) {
 	if !ok {
 		return user, errors.New("failed to extract user profile image url")
 	}
+	user.IsPrivate, ok = claimsUser["IsPrivate"].(bool)
+	if !ok {
+		return user, errors.New("failed to extract user is private")
+	}
 	return user, nil
 }
