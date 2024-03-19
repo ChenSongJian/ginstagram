@@ -129,7 +129,7 @@ func TestAuthMiddleware_ValidToken(t *testing.T) {
 		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
 	}
 
-	tokenUser := context.MustGet("user").(models.User)
+	tokenUser := context.MustGet("tokenUser").(models.User)
 	if tokenUser.Id != user.Id {
 		t.Errorf("Expected user ID %d, got %d", user.Id, tokenUser.Id)
 	}

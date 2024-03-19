@@ -8,9 +8,11 @@ import (
 )
 
 var userService services.UserService
+var followService services.FollowService
 
 func initServices() {
 	userService = services.NewDBUserService()
+	followService = services.NewDBFollowService()
 }
 
 func NewRouter() *gin.Engine {
@@ -33,6 +35,9 @@ func NewRouter() *gin.Engine {
 	userV1Group.POST("/login", handlers.LoginUser(userService))
 	userV1Group.POST("/logout", middlewares.AuthMiddleware(), handlers.LogoutUser(userService))
 	userV1Group.GET("/refresh", middlewares.AuthMiddleware(), handlers.RefreshToken(userService))
+
+	followV1Group := apiV1Group.Group("/follow")
+	followV1Group.POST("/", middlewares.AuthMiddleware(), handlers.FollowUser(followService))
 
 	return r
 }
