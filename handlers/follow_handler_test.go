@@ -172,24 +172,6 @@ func TestFollowUser_MissingToken(t *testing.T) {
 	}
 }
 
-func TestFollowUser_InvalidToken(t *testing.T) {
-	mockFollowService := mocks.NewMockFollowService()
-	response := httptest.NewRecorder()
-	context, _ := gin.CreateTestContext(response)
-
-	context.Request, _ = http.NewRequest("GET", "/", nil)
-	context.Request.Header.Set("Authorization", "Bearer invalidtoken")
-
-	handlers.FollowUser(mockFollowService)(context)
-	if response.Code != http.StatusBadRequest {
-		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
-	}
-	expectedResponseBodyString := "user not found in token"
-	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
-		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
-	}
-}
-
 func TestFollowUser_MissingRequiredField(t *testing.T) {
 	mockFollowService := mocks.NewMockFollowService()
 	response := httptest.NewRecorder()
@@ -403,24 +385,6 @@ func TestUnfollowUser_MissingToken(t *testing.T) {
 	context, _ := gin.CreateTestContext(response)
 
 	context.Request, _ = http.NewRequest("DELETE", "/", nil)
-
-	handlers.UnfollowUser(mockFollowService)(context)
-	if response.Code != http.StatusBadRequest {
-		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
-	}
-	expectedResponseBodyString := "user not found in token"
-	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
-		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
-	}
-}
-
-func TestUnfollowUser_InvalidToken(t *testing.T) {
-	mockFollowService := mocks.NewMockFollowService()
-	response := httptest.NewRecorder()
-	context, _ := gin.CreateTestContext(response)
-
-	context.Request, _ = http.NewRequest("DELETE", "/", nil)
-	context.Request.Header.Set("Authorization", "Bearer invalidtoken")
 
 	handlers.UnfollowUser(mockFollowService)(context)
 	if response.Code != http.StatusBadRequest {

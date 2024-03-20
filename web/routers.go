@@ -11,12 +11,14 @@ var userService services.UserService
 var followService services.FollowService
 var postService services.PostService
 var mediaService services.MediaService
+var commentService services.CommentService
 
 func initServices() {
 	userService = services.NewDBUserService()
 	followService = services.NewDBFollowService()
 	postService = services.NewDBPostService()
 	mediaService = services.NewDBMediaService()
+	commentService = services.NewDBCommentService()
 }
 
 func NewRouter() *gin.Engine {
@@ -50,6 +52,7 @@ func NewRouter() *gin.Engine {
 	postV1Group.GET("/", middlewares.AuthMiddleware(), handlers.ListPosts(postService, mediaService))
 	postV1Group.POST("/", middlewares.AuthMiddleware(), handlers.CreatePost(postService, mediaService))
 	postV1Group.DELETE("/:postId", middlewares.AuthMiddleware(), handlers.DeletePost(postService, mediaService))
+	postV1Group.POST("/:postId/comment", middlewares.AuthMiddleware(), handlers.CreateComment(userService, followService, postService, commentService))
 
 	return r
 }

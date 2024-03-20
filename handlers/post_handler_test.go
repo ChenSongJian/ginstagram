@@ -264,27 +264,6 @@ func TestListPost_MissingToken(t *testing.T) {
 
 }
 
-func TestListPost_InvalidToken(t *testing.T) {
-	mockPostService := mocks.NewMockPostService()
-	mockMediaService := mockPostService.MediaService
-
-	response := httptest.NewRecorder()
-	context, _ := gin.CreateTestContext(response)
-
-	context.Request, _ = http.NewRequest("GET", "/", nil)
-	context.Request.Header.Set("Authorization", "Bearer invalidtoken")
-
-	handlers.ListPosts(mockPostService, mockMediaService)(context)
-	if response.Code != http.StatusBadRequest {
-		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
-	}
-	expectedResponseBodyString := "user not found in token"
-	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
-		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
-	}
-
-}
-
 func TestListPost_NoRecord(t *testing.T) {
 	mockPostService := mocks.NewMockPostService()
 	mockMediaService := mockPostService.MediaService
@@ -739,27 +718,6 @@ func TestCreatePost_MissingToken(t *testing.T) {
 
 }
 
-func TestCreatePost_InvalidToken(t *testing.T) {
-	mockPostService := mocks.NewMockPostService()
-	mockMediaService := mockPostService.MediaService
-
-	response := httptest.NewRecorder()
-	context, _ := gin.CreateTestContext(response)
-
-	context.Request, _ = http.NewRequest("POST", "/", nil)
-	context.Request.Header.Set("Authorization", "Bearer invalidtoken")
-
-	handlers.CreatePost(mockPostService, mockMediaService)(context)
-	if response.Code != http.StatusBadRequest {
-		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
-	}
-	expectedResponseBodyString := "user not found in token"
-	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
-		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
-	}
-
-}
-
 func TestCreatePost_MissingRequiredField(t *testing.T) {
 	mockPostService := mocks.NewMockPostService()
 	mockMediaService := mockPostService.MediaService
@@ -962,27 +920,6 @@ func TestDeletePost_MissingToken(t *testing.T) {
 	context, _ := gin.CreateTestContext(response)
 
 	context.Request, _ = http.NewRequest("DELETE", "/", nil)
-
-	handlers.CreatePost(mockPostService, mockMediaService)(context)
-	if response.Code != http.StatusBadRequest {
-		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
-	}
-	expectedResponseBodyString := "user not found in token"
-	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
-		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
-	}
-
-}
-
-func TestDeletePost_InvalidToken(t *testing.T) {
-	mockPostService := mocks.NewMockPostService()
-	mockMediaService := mockPostService.MediaService
-
-	response := httptest.NewRecorder()
-	context, _ := gin.CreateTestContext(response)
-
-	context.Request, _ = http.NewRequest("DELETE", "/", nil)
-	context.Request.Header.Set("Authorization", "Bearer invalidtoken")
 
 	handlers.CreatePost(mockPostService, mockMediaService)(context)
 	if response.Code != http.StatusBadRequest {

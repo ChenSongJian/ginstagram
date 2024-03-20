@@ -100,3 +100,12 @@ func (followService *MockFollowService) Delete(followId int) error {
 	delete(followService.Follows, followId)
 	return nil
 }
+
+func (followService *MockFollowService) IsFollowing(followerId int, followeeId int) bool {
+	for _, v := range followService.Follows {
+		if v.FollowerId == followerId && v.FolloweeId == followeeId {
+			return true
+		}
+	}
+	return false
+}

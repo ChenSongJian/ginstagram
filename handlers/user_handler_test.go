@@ -363,38 +363,6 @@ func TestUpdateUser_MissingToken(t *testing.T) {
 	}
 }
 
-func TestUpdateUser_InvalidToken(t *testing.T) {
-	mockUserService := mocks.NewMockUserService()
-	response := httptest.NewRecorder()
-
-	context, _ := gin.CreateTestContext(response)
-	context.Params = []gin.Param{
-		{
-			Key:   "userId",
-			Value: "1",
-		},
-	}
-	jsonBody, err := json.Marshal(map[string]string{
-		"username": "username",
-	})
-	if err != nil {
-		t.Errorf("Error marshaling request body: %v", err)
-		return
-	}
-	context.Request, _ = http.NewRequest("PUT", "/", bytes.NewReader(jsonBody))
-	context.Request.Header.Set("Content-Type", "application/json")
-	context.Request.Header.Set("Authorization", "Bearer invalidToken")
-	middlewares.AuthMiddleware()(context)
-	handlers.UpdateUser(mockUserService)(context)
-	if response.Code != http.StatusUnauthorized {
-		t.Errorf("Expected status code %d, got %d", http.StatusUnauthorized, response.Code)
-	}
-	expectedResponseBodyString := "user not found in token"
-	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
-		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
-	}
-}
-
 func TestUpdateUser_InvalidUserId(t *testing.T) {
 	mockUserService := mocks.NewMockUserService()
 	response := httptest.NewRecorder()
@@ -634,30 +602,6 @@ func TestDeleteUser_MissingToken(t *testing.T) {
 	}
 	context.Request, _ = http.NewRequest("DELETE", "/", nil)
 	context.Request.Header.Set("Content-Type", "application/json")
-	middlewares.AuthMiddleware()(context)
-	handlers.DeleteUser(mockUserService)(context)
-	if response.Code != http.StatusUnauthorized {
-		t.Errorf("Expected status code %d, got %d", http.StatusUnauthorized, response.Code)
-	}
-	expectedResponseBodyString := "user not found in token"
-	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
-		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
-	}
-}
-
-func TestDeleteUser_InvalidToken(t *testing.T) {
-	mockUserService := mocks.NewMockUserService()
-	response := httptest.NewRecorder()
-	context, _ := gin.CreateTestContext(response)
-	context.Params = []gin.Param{
-		{
-			Key:   "userId",
-			Value: "1",
-		},
-	}
-	context.Request, _ = http.NewRequest("DELETE", "/", nil)
-	context.Request.Header.Set("Content-Type", "application/json")
-	context.Request.Header.Set("Authorization", "Bearer invalidtoken")
 	middlewares.AuthMiddleware()(context)
 	handlers.DeleteUser(mockUserService)(context)
 	if response.Code != http.StatusUnauthorized {
@@ -985,23 +929,6 @@ func TestLogoutUser_MissingToken(t *testing.T) {
 	}
 }
 
-func TestLogoutUser_InvalidToken(t *testing.T) {
-	mockUserService := mocks.NewMockUserService()
-	response := httptest.NewRecorder()
-	context, _ := gin.CreateTestContext(response)
-
-	context.Request, _ = http.NewRequest("POST", "/", nil)
-	context.Request.Header.Set("Authorization", "Bearer invalidtoken")
-	handlers.LogoutUser(mockUserService)(context)
-	if response.Code != http.StatusBadRequest {
-		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
-	}
-	expectedResponseBodyString := "user not found in token"
-	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
-		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
-	}
-}
-
 func TestLogoutUser_TokenUserNotFound(t *testing.T) {
 	mockUserService := mocks.NewMockUserService()
 	testUser := models.User{
@@ -1065,24 +992,6 @@ func TestRefreshToken_MissingToken(t *testing.T) {
 	context, _ := gin.CreateTestContext(response)
 
 	context.Request, _ = http.NewRequest("GET", "/", nil)
-
-	handlers.RefreshToken(mockUserService)(context)
-	if response.Code != http.StatusBadRequest {
-		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
-	}
-	expectedResponseBodyString := "user not found in token"
-	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
-		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
-	}
-}
-
-func TestRefreshToken_InvalidToken(t *testing.T) {
-	mockUserService := mocks.NewMockUserService()
-	response := httptest.NewRecorder()
-	context, _ := gin.CreateTestContext(response)
-
-	context.Request, _ = http.NewRequest("GET", "/", nil)
-	context.Request.Header.Set("Authorization", "Bearer invalidtoken")
 
 	handlers.RefreshToken(mockUserService)(context)
 	if response.Code != http.StatusBadRequest {

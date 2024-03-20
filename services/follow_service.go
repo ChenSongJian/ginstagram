@@ -12,6 +12,7 @@ type FollowService interface {
 	GetByFolloweeId(followId int) ([]models.Follow, error)
 	Create(followerId int, followeeId int) error
 	Delete(followId int) error
+	IsFollowing(followerId int, followeeId int) bool
 }
 
 type DBFollowService struct {
@@ -51,4 +52,10 @@ func (followService *DBFollowService) Create(followerId int, followeeId int) err
 func (followService *DBFollowService) Delete(followId int) error {
 	result := followService.db.Delete(&models.Follow{}, followId)
 	return result.Error
+}
+
+func (followService *DBFollowService) IsFollowing(followerId int, followeeId int) bool {
+	var follow models.Follow
+	result := followService.db.Where("follower_id = ? AND user_id = ?", followerId, followeeId).First(&follow)
+	return result.RowsAffected > 0
 }
