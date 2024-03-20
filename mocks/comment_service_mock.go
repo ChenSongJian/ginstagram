@@ -1,5 +1,11 @@
 package mocks
 
+import (
+	"errors"
+
+	"github.com/ChenSongJian/ginstagram/models"
+)
+
 type MockCommentService struct {
 	Comments      map[int]CommentRecord
 	UserService   *MockUserService
@@ -32,5 +38,22 @@ func (mockCommentService *MockCommentService) Create(postId int, userId int, con
 		UserId:  userId,
 	}
 	mockCommentService.Comments[commentRecordId] = commentRecord
+	return nil
+}
+
+func (mockCommentService *MockCommentService) GetById(commentId int) (models.Comment, error) {
+	commentRecord, ok := mockCommentService.Comments[commentId]
+	if !ok {
+		return models.Comment{}, errors.New("record not found")
+	}
+	return models.Comment{
+		Content: commentRecord.Content,
+		PostId:  commentRecord.PostId,
+		UserId:  commentRecord.UserId,
+	}, nil
+}
+
+func (mockCommentService *MockCommentService) DeleteById(commentId int) error {
+	delete(mockCommentService.Comments, commentId)
 	return nil
 }

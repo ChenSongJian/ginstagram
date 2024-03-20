@@ -65,3 +65,49 @@ func CreateComment(userService services.UserService, followService services.Foll
 		c.JSON(http.StatusOK, gin.H{"message": "comment created successfully"})
 	}
 }
+
+func DeleteComment(userService services.UserService, followService services.FollowService,
+	postService services.PostService, commentService services.CommentService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tokenUser, exists := c.Get("tokenUser")
+		if !exists {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "user not found in token"})
+			return
+		}
+		modelTokenUser, ok := tokenUser.(models.User)
+		if !ok {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid token user type"})
+			return
+		}
+		postIdStr := c.Param("postId")
+		_, err := strconv.Atoi(postIdStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid post id"})
+			return
+		}
+		commentIdStr := c.Param("commentId")
+		commentId, err := strconv.Atoi(commentIdStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid comment id"})
+			return
+		}
+		comment, err := commentService.GetById(commentId)
+		if err != nil {
+			if err.Error() == "record not found" {
+				c.JSON(http.StatusNotFound, gin.H{"error": "comment not found"})
+				return
+			}
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if comment.UserId != modelTokenUser.Id {
+			c.JSON(http.StatusForbidden, gin.H{"error": "you are not the author of the comment"})
+			return
+		}
+		if err := commentService.DeleteById(commentId); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "comment deleted successfully"})
+	}
+}

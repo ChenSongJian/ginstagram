@@ -408,3 +408,238 @@ func TestCreateComment_SuccessFollowingPost(t *testing.T) {
 		t.Errorf("Comment not added")
 	}
 }
+
+func TestDeleteComment_MissingToken(t *testing.T) {
+	mockCommentService := mocks.NewMockCommentService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	context.Request, _ = http.NewRequest("DELETE", "/", nil)
+
+	handlers.DeleteComment(mockCommentService.UserService, mockCommentService.FollowService,
+		mockCommentService.PostService, mockCommentService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "user not found in token"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestDeleteComment_InvalidPostId(t *testing.T) {
+	mockCommentService := mocks.NewMockCommentService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "postId",
+			Value: "invalid_id",
+		},
+		{
+			Key:   "commentId",
+			Value: "1",
+		},
+	}
+
+	context.Request, _ = http.NewRequest("DELETE", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+
+	middlewares.AuthMiddleware()(context)
+	handlers.DeleteComment(mockCommentService.UserService, mockCommentService.FollowService,
+		mockCommentService.PostService, mockCommentService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "invalid post id"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestDeleteComment_InvalidCommentId(t *testing.T) {
+	mockCommentService := mocks.NewMockCommentService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "postId",
+			Value: "1",
+		},
+		{
+			Key:   "commentId",
+			Value: "invalid_id",
+		},
+	}
+
+	context.Request, _ = http.NewRequest("DELETE", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+
+	middlewares.AuthMiddleware()(context)
+	handlers.DeleteComment(mockCommentService.UserService, mockCommentService.FollowService,
+		mockCommentService.PostService, mockCommentService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "invalid comment id"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestDeleteComment_CommentNotFound(t *testing.T) {
+	mockCommentService := mocks.NewMockCommentService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "postId",
+			Value: "1",
+		},
+		{
+			Key:   "commentId",
+			Value: "1",
+		},
+	}
+
+	context.Request, _ = http.NewRequest("DELETE", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+
+	middlewares.AuthMiddleware()(context)
+	handlers.DeleteComment(mockCommentService.UserService, mockCommentService.FollowService,
+		mockCommentService.PostService, mockCommentService)(context)
+	if response.Code != http.StatusNotFound {
+		t.Errorf("Expected status code %d, got %d", http.StatusNotFound, response.Code)
+	}
+	expectedResponseBodyString := "comment not found"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestDeleteComment_NoPermission(t *testing.T) {
+	mockCommentService := mocks.NewMockCommentService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+
+	mockCommentService.Comments[1] = mocks.CommentRecord{
+		UserId: 2,
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "postId",
+			Value: "1",
+		},
+		{
+			Key:   "commentId",
+			Value: "1",
+		},
+	}
+
+	context.Request, _ = http.NewRequest("DELETE", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+
+	middlewares.AuthMiddleware()(context)
+	handlers.DeleteComment(mockCommentService.UserService, mockCommentService.FollowService,
+		mockCommentService.PostService, mockCommentService)(context)
+	if response.Code != http.StatusForbidden {
+		t.Errorf("Expected status code %d, got %d", http.StatusForbidden, response.Code)
+	}
+	expectedResponseBodyString := "you are not the author of the comment"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestDeleteComment_Success(t *testing.T) {
+	mockCommentService := mocks.NewMockCommentService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+	commentId := 1
+	mockCommentService.Comments[commentId] = mocks.CommentRecord{
+		UserId: 1,
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "postId",
+			Value: "1",
+		},
+		{
+			Key:   "commentId",
+			Value: "1",
+		},
+	}
+
+	context.Request, _ = http.NewRequest("DELETE", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+
+	middlewares.AuthMiddleware()(context)
+	handlers.DeleteComment(mockCommentService.UserService, mockCommentService.FollowService,
+		mockCommentService.PostService, mockCommentService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	if _, ok := mockCommentService.Comments[commentId]; ok {
+		t.Errorf("Comment not deleted")
+	}
+}
