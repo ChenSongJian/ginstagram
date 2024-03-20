@@ -37,6 +37,7 @@ func NewRouter() *gin.Engine {
 	userV1Group.GET("/refresh", middlewares.AuthMiddleware(), handlers.RefreshToken(userService))
 
 	followV1Group := apiV1Group.Group("/follow")
+	followV1Group.GET("/", handlers.ListFollows(followService))
 	followV1Group.POST("/", middlewares.AuthMiddleware(), handlers.FollowUser(followService))
 	followV1Group.DELETE("/:followId", middlewares.AuthMiddleware(), handlers.UnfollowUser(followService))
 

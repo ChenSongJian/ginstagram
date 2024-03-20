@@ -15,6 +15,146 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func TestListFollows_MissingQuery(t *testing.T) {
+	mockFollowService := mocks.NewMockFollowService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+
+	handlers.ListFollows(mockFollowService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "Either provide follower_id or followee_id, but not both and not neither."
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestListFollows_SentBothQuery(t *testing.T) {
+	mockFollowService := mocks.NewMockFollowService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	context.Request, _ = http.NewRequest("GET", "/?follower_id=1&followee_id=1", nil)
+	handlers.ListFollows(mockFollowService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "Either provide follower_id or followee_id, but not both and not neither."
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestListFollows_InvalidFollower(t *testing.T) {
+	mockFollowService := mocks.NewMockFollowService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	context.Request, _ = http.NewRequest("GET", "/?follower_id=invalid", nil)
+	handlers.ListFollows(mockFollowService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "invalid follower_id"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestListFollows_InvalidFollowee(t *testing.T) {
+	mockFollowService := mocks.NewMockFollowService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	context.Request, _ = http.NewRequest("GET", "/?followee_id=invalid", nil)
+	handlers.ListFollows(mockFollowService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "invalid followee_id"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestListFollows_FollowerEmpty(t *testing.T) {
+	mockFollowService := mocks.NewMockFollowService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	context.Request, _ = http.NewRequest("GET", "/?follower_id=1", nil)
+	handlers.ListFollows(mockFollowService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	expectedResponseBodyString := "\"follows\":null"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestListFollows_FolloweeEmpty(t *testing.T) {
+	mockFollowService := mocks.NewMockFollowService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	context.Request, _ = http.NewRequest("GET", "/?followee_id=1", nil)
+	handlers.ListFollows(mockFollowService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	expectedResponseBodyString := "\"follows\":null"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestListFollows_FollowerSuccess(t *testing.T) {
+	mockFollowService := mocks.NewMockFollowService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	record := mocks.FollowRecord{
+		FollowerId: 1,
+		FolloweeId: 2,
+	}
+	mockFollowService.Follow[1] = record
+
+	context.Request, _ = http.NewRequest("GET", "/?follower_id=1", nil)
+	handlers.ListFollows(mockFollowService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	expectedResponseBodyString := "\"follows\":[{\"Id\":1,"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+func TestListFollows_FolloweeSuccess(t *testing.T) {
+	mockFollowService := mocks.NewMockFollowService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	record := mocks.FollowRecord{
+		FollowerId: 1,
+		FolloweeId: 2,
+	}
+	mockFollowService.Follow[1] = record
+
+	context.Request, _ = http.NewRequest("GET", "/?followee_id=2", nil)
+	handlers.ListFollows(mockFollowService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	expectedResponseBodyString := "\"follows\":[{\"Id\":1,"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
 func TestFollowUser_MissingToken(t *testing.T) {
 	mockFollowService := mocks.NewMockFollowService()
 	response := httptest.NewRecorder()

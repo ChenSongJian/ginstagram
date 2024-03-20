@@ -36,6 +36,34 @@ func (followService *MockFollowService) GetById(followId int) (models.Follow, er
 	return models.Follow{}, errors.New("record not found")
 }
 
+func (followService *MockFollowService) GetByFollowerId(followerId int) ([]models.Follow, error) {
+	var result []models.Follow
+	for k, v := range followService.Follow {
+		if v.FollowerId == followerId {
+			result = append(result, models.Follow{
+				Id:         k,
+				FollowerId: v.FollowerId,
+				UserId:     v.FolloweeId,
+			})
+		}
+	}
+	return result, nil
+}
+
+func (followService *MockFollowService) GetByFolloweeId(followeeId int) ([]models.Follow, error) {
+	var result []models.Follow
+	for k, v := range followService.Follow {
+		if v.FolloweeId == followeeId {
+			result = append(result, models.Follow{
+				Id:         k,
+				FollowerId: v.FollowerId,
+				UserId:     v.FolloweeId,
+			})
+		}
+	}
+	return result, nil
+}
+
 func (followService *MockFollowService) Create(followerId int, followeeId int) error {
 	if _, err := followService.UserService.GetById(followerId); err != nil {
 		if err.Error() == "record not found" {

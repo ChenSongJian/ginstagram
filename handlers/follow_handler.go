@@ -14,6 +14,51 @@ type FollowUserReq struct {
 	UserId int `json:"user_id" binding:"required"`
 }
 
+type FollowResponse struct {
+	Id         int `json:"id"`
+	FollowerId int `json:"follower_id"`
+	FolloweeId int `json:"followee_id"`
+}
+
+func ListFollows(followService services.FollowService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		followerIdStr := c.Query("follower_id")
+		followeeIdStr := c.Query("followee_id")
+		if (followerIdStr == "" && followeeIdStr == "") || (followerIdStr != "" && followeeIdStr != "") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Either provide follower_id or followee_id, but not both and not neither."})
+			return
+		}
+		var follows []models.Follow
+		if followerIdStr != "" {
+			var followerId int
+			followerId, err := strconv.Atoi(followerIdStr)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid follower_id"})
+				return
+			}
+			follows, err = followService.GetByFollowerId(followerId)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+		}
+		if followeeIdStr != "" {
+			var followeeId int
+			followeeId, err := strconv.Atoi(followeeIdStr)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid followee_id"})
+				return
+			}
+			follows, err = followService.GetByFolloweeId(followeeId)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+		}
+		c.JSON(http.StatusOK, gin.H{"follows": follows})
+	}
+}
+
 func FollowUser(followService services.FollowService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenUser, exists := c.Get("tokenUser")
