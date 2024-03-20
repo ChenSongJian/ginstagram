@@ -9,6 +9,7 @@ import (
 )
 
 type PostService interface {
+	GetById(postId int) (models.Post, error)
 	Create(post models.Post) (int, error)
 	DeleteById(id int) error
 }
@@ -19,6 +20,15 @@ type DBPostService struct {
 
 func NewDBPostService() *DBPostService {
 	return &DBPostService{db: db.DB}
+}
+
+func (postService *DBPostService) GetById(postId int) (models.Post, error) {
+	var post models.Post
+	result := postService.db.First(&post, postId)
+	if result.Error != nil {
+		return post, result.Error
+	}
+	return post, nil
 }
 
 func (postService *DBPostService) Create(post models.Post) (int, error) {

@@ -47,6 +47,7 @@ func NewRouter() *gin.Engine {
 
 	postV1Group := apiV1Group.Group("/post")
 	postV1Group.POST("/", middlewares.AuthMiddleware(), handlers.CreatePost(postService, mediaService))
+	postV1Group.DELETE("/:postId", middlewares.AuthMiddleware(), handlers.DeletePost(postService, mediaService))
 
 	return r
 }

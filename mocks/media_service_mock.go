@@ -29,3 +29,15 @@ func (mediaService *MockMediaService) Create(media []models.Media) error {
 	}
 	return nil
 }
+
+func (mediaService *MockMediaService) DeleteByPostId(postId int) error {
+	var mediaId int
+	for k, v := range mediaService.Media {
+		if v.PostId == postId {
+			mediaId = k
+			break
+		}
+	}
+	delete(mediaService.Media, mediaId)
+	return nil
+}
