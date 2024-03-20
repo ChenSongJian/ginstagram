@@ -9,10 +9,14 @@ import (
 
 var userService services.UserService
 var followService services.FollowService
+var postService services.PostService
+var mediaService services.MediaService
 
 func initServices() {
 	userService = services.NewDBUserService()
 	followService = services.NewDBFollowService()
+	postService = services.NewDBPostService()
+	mediaService = services.NewDBMediaService()
 }
 
 func NewRouter() *gin.Engine {
@@ -40,6 +44,9 @@ func NewRouter() *gin.Engine {
 	followV1Group.GET("/", handlers.ListFollows(followService))
 	followV1Group.POST("/", middlewares.AuthMiddleware(), handlers.FollowUser(followService))
 	followV1Group.DELETE("/:followId", middlewares.AuthMiddleware(), handlers.UnfollowUser(followService))
+
+	postV1Group := apiV1Group.Group("/post")
+	postV1Group.POST("/", middlewares.AuthMiddleware(), handlers.CreatePost(postService, mediaService))
 
 	return r
 }
