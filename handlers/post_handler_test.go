@@ -12,8 +12,237 @@ import (
 	"github.com/ChenSongJian/ginstagram/middlewares"
 	"github.com/ChenSongJian/ginstagram/mocks"
 	"github.com/ChenSongJian/ginstagram/models"
+	"github.com/ChenSongJian/ginstagram/utils"
 	"github.com/gin-gonic/gin"
 )
+
+func TestListPublicPost_NoPost(t *testing.T) {
+	mockPostService := mocks.NewMockPostService()
+	mockMediaService := mockPostService.MediaService
+
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+
+	handlers.ListPublicPosts(mockPostService, mockMediaService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	expectedResponseBodyString := "total_records\":0"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestListPublicPost_PrivatePost(t *testing.T) {
+	mockPostService := mocks.NewMockPostService()
+	mockMediaService := mockPostService.MediaService
+
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	mockPostService.UserService.Users["email"] = models.User{
+		Id:        1,
+		IsPrivate: true,
+	}
+	mockPostService.Posts[1] = mocks.PostRecord{
+		UserId:  1,
+		Title:   "private post",
+		Content: "private post",
+	}
+
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+
+	handlers.ListPublicPosts(mockPostService, mockMediaService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	expectedResponseBodyString := "total_records\":0"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestListPublicPost_PublicPost(t *testing.T) {
+	mockPostService := mocks.NewMockPostService()
+	mockMediaService := mockPostService.MediaService
+
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	mockPostService.UserService.Users["email"] = models.User{
+		Id:        1,
+		IsPrivate: false,
+	}
+	mockPostService.Posts[1] = mocks.PostRecord{
+		UserId:  1,
+		Title:   "private post",
+		Content: "private post",
+	}
+
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+
+	handlers.ListPublicPosts(mockPostService, mockMediaService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	expectedResponseBodyString := "total_records\":1"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestListPublicPost_PostWithMedia(t *testing.T) {
+	mockPostService := mocks.NewMockPostService()
+	mockMediaService := mockPostService.MediaService
+
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	mockPostService.UserService.Users["email"] = models.User{
+		Id:        1,
+		IsPrivate: false,
+	}
+	mockPostService.Posts[1] = mocks.PostRecord{
+		UserId:  1,
+		Title:   "private post",
+		Content: "private post",
+	}
+	mockMediaService.Media[1] = mocks.MediaRecord{
+		PostId: 1,
+		Url:    "m0",
+	}
+
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+
+	handlers.ListPublicPosts(mockPostService, mockMediaService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	expectedResponseBodyString := "total_records\":1"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+	expectedResponseBodyString = "media\":[\"m0"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestListPublicPost_FilterTitleKeyword(t *testing.T) {
+	mockPostService := mocks.NewMockPostService()
+	mockMediaService := mockPostService.MediaService
+
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	mockPostService.UserService.Users["email"] = models.User{
+		Id:        1,
+		IsPrivate: false,
+	}
+	mockPostService.Posts[1] = mocks.PostRecord{
+		UserId:  1,
+		Title:   "test1",
+		Content: "test",
+	}
+	mockPostService.Posts[2] = mocks.PostRecord{
+		UserId:  1,
+		Title:   "test",
+		Content: "test",
+	}
+
+	context.Request, _ = http.NewRequest("GET", "/?keyword=test1", nil)
+
+	handlers.ListPublicPosts(mockPostService, mockMediaService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	expectedResponseBodyString := "total_records\":1"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+	expectedResponseBodyString = "title\":\"test1"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestListPublicPost_FilterContentKeyword(t *testing.T) {
+	mockPostService := mocks.NewMockPostService()
+	mockMediaService := mockPostService.MediaService
+
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	mockPostService.UserService.Users["email"] = models.User{
+		Id:        1,
+		IsPrivate: false,
+	}
+	mockPostService.Posts[1] = mocks.PostRecord{
+		UserId:  1,
+		Title:   "test",
+		Content: "test1",
+	}
+	mockPostService.Posts[2] = mocks.PostRecord{
+		UserId:  1,
+		Title:   "test",
+		Content: "test",
+	}
+
+	context.Request, _ = http.NewRequest("GET", "/?keyword=test1", nil)
+
+	handlers.ListPublicPosts(mockPostService, mockMediaService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	expectedResponseBodyString := "total_records\":1"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+	expectedResponseBodyString = "content\":\"test1"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestListPublicPost_Pagination(t *testing.T) {
+	mockPostService := mocks.NewMockPostService()
+	mockMediaService := mockPostService.MediaService
+
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	mockPostService.UserService.Users["email"] = models.User{
+		Id:        1,
+		IsPrivate: false,
+	}
+	mockPostService.Posts[1] = mocks.PostRecord{
+		UserId:  1,
+		Title:   "test",
+		Content: "test1",
+	}
+	mockPostService.Posts[2] = mocks.PostRecord{
+		UserId:  1,
+		Title:   "test2",
+		Content: "test",
+	}
+
+	context.Request, _ = http.NewRequest("GET", "/?pageNum=2&pageSize=1", nil)
+
+	handlers.ListPublicPosts(mockPostService, mockMediaService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	var responseBody utils.PageResponse
+	json.Unmarshal(response.Body.Bytes(), &responseBody)
+	if responseBody.TotalRecords != 2 {
+		t.Errorf("Expected total records %d, got %d", 2, responseBody.TotalRecords)
+	}
+	if len(responseBody.Data.([]interface{})) != 1 {
+		t.Errorf("Expected post response length %d", 1)
+	}
+}
 
 func TestListPost_MissingToken(t *testing.T) {
 	mockPostService := mocks.NewMockPostService()
@@ -24,7 +253,7 @@ func TestListPost_MissingToken(t *testing.T) {
 
 	context.Request, _ = http.NewRequest("GET", "/", nil)
 
-	handlers.CreatePost(mockPostService, mockMediaService)(context)
+	handlers.ListPosts(mockPostService, mockMediaService)(context)
 	if response.Code != http.StatusBadRequest {
 		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
 	}
@@ -45,7 +274,7 @@ func TestListPost_InvalidToken(t *testing.T) {
 	context.Request, _ = http.NewRequest("GET", "/", nil)
 	context.Request.Header.Set("Authorization", "Bearer invalidtoken")
 
-	handlers.CreatePost(mockPostService, mockMediaService)(context)
+	handlers.ListPosts(mockPostService, mockMediaService)(context)
 	if response.Code != http.StatusBadRequest {
 		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
 	}
@@ -480,13 +709,13 @@ func TestListPost_Pagination(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
 	}
-	expectedResponseBodyString := "total_records\":2"
-	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
-		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	var responseBody utils.PageResponse
+	json.Unmarshal(response.Body.Bytes(), &responseBody)
+	if responseBody.TotalRecords != 2 {
+		t.Errorf("Expected total records %d, got %d", 2, responseBody.TotalRecords)
 	}
-	expectedResponseBodyString = "content\":\"test2"
-	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
-		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	if len(responseBody.Data.([]interface{})) != 1 {
+		t.Errorf("Expected post response length %d", 1)
 	}
 }
 

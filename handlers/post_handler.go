@@ -24,6 +24,41 @@ type PostResponse struct {
 	Media     []string `json:"media"`
 }
 
+func ListPublicPosts(postService services.PostService, mediaService services.MediaService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+		pageNum := c.Query("pageNum")
+		pageSize := c.Query("pageSize")
+		keyword := c.Query("keyword")
+		posts, mediaMap, pageInfo, err := postService.List(pageNum, pageSize, keyword)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		var postResponses = make([]PostResponse, 0)
+		for _, post := range posts {
+			media, ok := mediaMap[post.Id]
+			if !ok {
+				media = []models.Media{}
+			}
+			var mediaUrls []string
+			for _, m := range media {
+				mediaUrls = append(mediaUrls, m.Url)
+			}
+			postResponses = append(postResponses, PostResponse{
+				Id:        post.Id,
+				CreatedAt: post.CreatedAt.Format("2006-01-02 15:04:05"),
+				Title:     post.Title,
+				Content:   post.Content,
+				UserId:    post.UserId,
+				Media:     mediaUrls,
+			})
+		}
+		pageInfo.Data = postResponses
+		c.JSON(http.StatusOK, pageInfo)
+	}
+}
+
 func ListPosts(postService services.PostService, mediaService services.MediaService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenUser, exists := c.Get("tokenUser")
@@ -39,7 +74,7 @@ func ListPosts(postService services.PostService, mediaService services.MediaServ
 		pageNum := c.Query("pageNum")
 		pageSize := c.Query("pageSize")
 		keyword := c.Query("keyword")
-		posts, mediaMap, pageInfo, err := postService.List(modelTokenUser.Id, pageNum, pageSize, keyword)
+		posts, mediaMap, pageInfo, err := postService.ListByUserId(modelTokenUser.Id, pageNum, pageSize, keyword)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return

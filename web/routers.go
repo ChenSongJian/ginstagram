@@ -46,6 +46,7 @@ func NewRouter() *gin.Engine {
 	followV1Group.DELETE("/:followId", middlewares.AuthMiddleware(), handlers.UnfollowUser(followService))
 
 	postV1Group := apiV1Group.Group("/post")
+	postV1Group.GET("/public", handlers.ListPublicPosts(postService, mediaService))
 	postV1Group.GET("/", middlewares.AuthMiddleware(), handlers.ListPosts(postService, mediaService))
 	postV1Group.POST("/", middlewares.AuthMiddleware(), handlers.CreatePost(postService, mediaService))
 	postV1Group.DELETE("/:postId", middlewares.AuthMiddleware(), handlers.DeletePost(postService, mediaService))

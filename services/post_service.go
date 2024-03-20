@@ -11,7 +11,8 @@ import (
 )
 
 type PostService interface {
-	List(userId int, pageNum string, pageSize string, keyword string) ([]models.Post, map[int][]models.Media, utils.PageResponse, error)
+	List(pageNum string, pageSize string, keyword string) ([]models.Post, map[int][]models.Media, utils.PageResponse, error)
+	ListByUserId(userId int, pageNum string, pageSize string, keyword string) ([]models.Post, map[int][]models.Media, utils.PageResponse, error)
 	GetById(postId int) (models.Post, error)
 	Create(post models.Post) (int, error)
 	DeleteById(id int) error
@@ -25,7 +26,56 @@ func NewDBPostService() *DBPostService {
 	return &DBPostService{db: db.DB}
 }
 
-func (postService *DBPostService) List(userId int, pageNum string, pageSize string, keyword string) ([]models.Post, map[int][]models.Media, utils.PageResponse, error) {
+func (postService *DBPostService) List(pageNum string, pageSize string, keyword string) ([]models.Post, map[int][]models.Media, utils.PageResponse, error) {
+	pageNumInt, err := strconv.Atoi(pageNum)
+	if err != nil {
+		pageNumInt = 1
+	}
+	pageSizeInt, err := strconv.Atoi(pageSize)
+	if err != nil {
+		pageSizeInt = 10
+	}
+	offset := (pageNumInt - 1) * pageSizeInt
+
+	filterUserIds := []int{}
+	var publicUsers []models.User
+	postService.db.Where("is_private=false").Find(&publicUsers)
+	for _, publicUser := range publicUsers {
+		filterUserIds = append(filterUserIds, publicUser.Id)
+	}
+
+	var posts []models.Post
+	query := postService.db.Model(&models.Post{})
+	if keyword != "" {
+		query = query.Where("title LIKE ? OR content LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
+	}
+	query = query.Where("user_id IN ?", filterUserIds).Order("created_at desc").Offset(offset).Limit(pageSizeInt)
+	query.Find(&posts)
+	var postIds []int
+	for _, post := range posts {
+		postIds = append(postIds, post.Id)
+	}
+	mediaMap := make(map[int][]models.Media)
+	if len(postIds) > 0 {
+		var media []models.Media
+		postService.db.Where("post_id IN ?", postIds).Find(&media)
+		for _, m := range media {
+			mediaMap[m.PostId] = append(mediaMap[m.PostId], m)
+		}
+	}
+	var totalCount int64
+	query.Count(&totalCount)
+	totalPages := int(math.Ceil(float64(totalCount) / float64(pageSizeInt)))
+	pageResponse := utils.PageResponse{
+		PageNum:      pageNumInt,
+		PageSize:     pageSizeInt,
+		TotalPages:   totalPages,
+		TotalRecords: int(totalCount),
+	}
+	return posts, mediaMap, pageResponse, nil
+}
+
+func (postService *DBPostService) ListByUserId(userId int, pageNum string, pageSize string, keyword string) ([]models.Post, map[int][]models.Media, utils.PageResponse, error) {
 	pageNumInt, err := strconv.Atoi(pageNum)
 	if err != nil {
 		pageNumInt = 1
@@ -68,7 +118,7 @@ func (postService *DBPostService) List(userId int, pageNum string, pageSize stri
 		}
 	}
 	var totalCount int64
-	postService.db.Model(&models.Post{}).Where("user_id IN ?", filterUserIds).Count(&totalCount)
+	query.Count(&totalCount)
 	totalPages := int(math.Ceil(float64(totalCount) / float64(pageSizeInt)))
 	pageResponse := utils.PageResponse{
 		PageNum:      pageNumInt,
@@ -77,7 +127,6 @@ func (postService *DBPostService) List(userId int, pageNum string, pageSize stri
 		TotalRecords: int(totalCount),
 	}
 	return posts, mediaMap, pageResponse, nil
-
 }
 
 func (postService *DBPostService) GetById(postId int) (models.Post, error) {
