@@ -698,6 +698,305 @@ func TestListPost_Pagination(t *testing.T) {
 	}
 }
 
+func TestGetPostById_InvalidPostId(t *testing.T) {
+	mockPostService := mocks.NewMockPostService()
+	mockMediaService := mockPostService.MediaService
+
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	context.Params = []gin.Param{
+		{
+			Key:   "postId",
+			Value: "invalid_id",
+		},
+	}
+
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+
+	handlers.GetPostById(mockPostService.UserService, mockPostService.FollowService, mockPostService, mockMediaService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "invalid post id"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestGetPostById_PostNotFound(t *testing.T) {
+	mockPostService := mocks.NewMockPostService()
+	mockMediaService := mockPostService.MediaService
+
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	context.Params = []gin.Param{
+		{
+			Key:   "postId",
+			Value: "1",
+		},
+	}
+
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+
+	handlers.GetPostById(mockPostService.UserService, mockPostService.FollowService, mockPostService, mockMediaService)(context)
+	if response.Code != http.StatusNotFound {
+		t.Errorf("Expected status code %d, got %d", http.StatusNotFound, response.Code)
+	}
+	expectedResponseBodyString := "post not found"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+func TestGetPostById_VisitorViewPrivatePost(t *testing.T) {
+	mockPostService := mocks.NewMockPostService()
+	mockMediaService := mockPostService.MediaService
+
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	mockPostService.Posts[1] = mocks.PostRecord{
+		UserId: 1,
+	}
+	mockPostService.UserService.Users["email@email.com"] = models.User{
+		Id:        1,
+		IsPrivate: true,
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "postId",
+			Value: "1",
+		},
+	}
+
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+
+	handlers.GetPostById(mockPostService.UserService, mockPostService.FollowService, mockPostService, mockMediaService)(context)
+	if response.Code != http.StatusForbidden {
+		t.Errorf("Expected status code %d, got %d", http.StatusForbidden, response.Code)
+	}
+	expectedResponseBodyString := "post is private, please login and retry again"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestGetPostById_VisitorViewPublicPost(t *testing.T) {
+	mockPostService := mocks.NewMockPostService()
+	mockMediaService := mockPostService.MediaService
+
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	mockPostService.Posts[1] = mocks.PostRecord{
+		UserId: 1,
+	}
+	mockPostService.UserService.Users["email@email.com"] = models.User{
+		Id:        1,
+		IsPrivate: false,
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "postId",
+			Value: "1",
+		},
+	}
+
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+
+	handlers.GetPostById(mockPostService.UserService, mockPostService.FollowService, mockPostService, mockMediaService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	expectedResponseBodyString := "\"id\":1"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestGetPostById_UserViewOwnPost(t *testing.T) {
+	mockPostService := mocks.NewMockPostService()
+	mockMediaService := mockPostService.MediaService
+
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+	mockPostService.Posts[1] = mocks.PostRecord{
+		UserId: 1,
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "postId",
+			Value: "1",
+		},
+	}
+
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+
+	handlers.GetPostById(mockPostService.UserService, mockPostService.FollowService, mockPostService, mockMediaService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	expectedResponseBodyString := "\"id\":1"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestGetPostById_UserViewPublicPost(t *testing.T) {
+	mockPostService := mocks.NewMockPostService()
+	mockMediaService := mockPostService.MediaService
+
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+	mockPostService.Posts[1] = mocks.PostRecord{
+		UserId: 2,
+	}
+	mockPostService.UserService.Users["email@email.com"] = models.User{
+		Id:        2,
+		IsPrivate: false,
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "postId",
+			Value: "1",
+		},
+	}
+
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+
+	handlers.GetPostById(mockPostService.UserService, mockPostService.FollowService, mockPostService, mockMediaService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	expectedResponseBodyString := "\"id\":1"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestGetPostById_UserViewPrivatePostNotFollowing(t *testing.T) {
+	mockPostService := mocks.NewMockPostService()
+	mockMediaService := mockPostService.MediaService
+
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+	mockPostService.Posts[1] = mocks.PostRecord{
+		UserId: 2,
+	}
+	mockPostService.UserService.Users["email@email.com"] = models.User{
+		Id:        2,
+		IsPrivate: true,
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "postId",
+			Value: "1",
+		},
+	}
+
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+
+	handlers.GetPostById(mockPostService.UserService, mockPostService.FollowService, mockPostService, mockMediaService)(context)
+	if response.Code != http.StatusForbidden {
+		t.Errorf("Expected status code %d, got %d", http.StatusForbidden, response.Code)
+	}
+	expectedResponseBodyString := "post is private and you are not following the author"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestGetPostById_UserViewPrivatePostAndFollowing(t *testing.T) {
+	mockPostService := mocks.NewMockPostService()
+	mockMediaService := mockPostService.MediaService
+
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+	mockPostService.Posts[1] = mocks.PostRecord{
+		UserId: 2,
+	}
+	mockPostService.UserService.Users["email@email.com"] = models.User{
+		Id:        2,
+		IsPrivate: false,
+	}
+	mockPostService.FollowService.Follows[1] = mocks.FollowRecord{
+		FollowerId: 1,
+		FolloweeId: 2,
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "postId",
+			Value: "1",
+		},
+	}
+
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+
+	handlers.GetPostById(mockPostService.UserService, mockPostService.FollowService, mockPostService, mockMediaService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	expectedResponseBodyString := "\"id\":1"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
 func TestCreatePost_MissingToken(t *testing.T) {
 	mockPostService := mocks.NewMockPostService()
 	mockMediaService := mockPostService.MediaService

@@ -30,6 +30,16 @@ func (mediaService *MockMediaService) Create(media []models.Media) error {
 	return nil
 }
 
+func (mediaService *MockMediaService) GetByPostId(postId int) ([]models.Media, error) {
+	media := []models.Media{}
+	for _, m := range mediaService.Media {
+		if m.PostId == postId {
+			media = append(media, models.Media{Url: m.Url})
+		}
+	}
+	return media, nil
+}
+
 func (mediaService *MockMediaService) DeleteByPostId(postId int) error {
 	var mediaId int
 	for k, v := range mediaService.Media {
