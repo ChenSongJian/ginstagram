@@ -38,6 +38,7 @@ func NewRouter() *gin.Engine {
 
 	followV1Group := apiV1Group.Group("/follow")
 	followV1Group.POST("/", middlewares.AuthMiddleware(), handlers.FollowUser(followService))
+	followV1Group.DELETE("/:followId", middlewares.AuthMiddleware(), handlers.UnfollowUser(followService))
 
 	return r
 }

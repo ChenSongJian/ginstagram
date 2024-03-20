@@ -171,7 +171,13 @@ func TestFollowUser_AlreadyFollowing(t *testing.T) {
 		Email:    "test2@test.com",
 	}
 	mockFollowService.UserService.Users[testUser2.Email] = testUser2
-	mockFollowService.Follow[testUser.Id] = append(mockFollowService.Follow[testUser.Id], testUser2.Id)
+
+	record := mocks.FollowRecord{
+		FollowerId: testUser.Id,
+		FolloweeId: testUser2.Id,
+	}
+
+	mockFollowService.Follow[1] = record
 	token, err := middlewares.GenerateToken(testUser, true)
 	if err != nil {
 		t.Errorf("Error generating token: %v", err)
@@ -234,17 +240,197 @@ func TestFollowUser_Success(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
 	}
-	if _, ok := mockFollowService.Follow[testUser.Id]; !ok {
-		t.Errorf("Expected follow map to contain key %d, got nil", testUser.Id)
+
+	record := mocks.FollowRecord{
+		FollowerId: testUser.Id,
+		FolloweeId: testUser2.Id,
 	}
 	found := false
-	for _, followeeId := range mockFollowService.Follow[testUser.Id] {
-		if followeeId == testUser2.Id {
+	for _, v := range mockFollowService.Follow {
+		if v == record {
 			found = true
 			break
 		}
 	}
 	if !found {
 		t.Errorf("Expected follow map to contain value %d, got nil", testUser2.Id)
+	}
+}
+
+func TestUnfollowUser_MissingToken(t *testing.T) {
+	mockFollowService := mocks.NewMockFollowService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	context.Request, _ = http.NewRequest("DELETE", "/", nil)
+
+	handlers.UnfollowUser(mockFollowService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "user not found in token"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestUnfollowUser_InvalidToken(t *testing.T) {
+	mockFollowService := mocks.NewMockFollowService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	context.Request, _ = http.NewRequest("DELETE", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer invalidtoken")
+
+	handlers.UnfollowUser(mockFollowService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "user not found in token"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestUnfollowUser_InvalidFollowId(t *testing.T) {
+	mockFollowService := mocks.NewMockFollowService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "followId",
+			Value: "invalid_id",
+		},
+	}
+	context.Request, _ = http.NewRequest("DELETE", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+	middlewares.AuthMiddleware()(context)
+	handlers.UnfollowUser(mockFollowService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "invalid follow id"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestUnfollowUser_FollowNotFound(t *testing.T) {
+	mockFollowService := mocks.NewMockFollowService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "followId",
+			Value: "1",
+		},
+	}
+	context.Request, _ = http.NewRequest("DELETE", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+	middlewares.AuthMiddleware()(context)
+	handlers.UnfollowUser(mockFollowService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "follow not found"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestUnfollowUser_NotFollower(t *testing.T) {
+	mockFollowService := mocks.NewMockFollowService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+	record := mocks.FollowRecord{
+		FollowerId: 2,
+		FolloweeId: 1,
+	}
+	mockFollowService.Follow[1] = record
+	context.Params = []gin.Param{
+		{
+			Key:   "followId",
+			Value: "1",
+		},
+	}
+	context.Request, _ = http.NewRequest("DELETE", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+	middlewares.AuthMiddleware()(context)
+	handlers.UnfollowUser(mockFollowService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "not follower"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestUnfollowUser_Success(t *testing.T) {
+	mockFollowService := mocks.NewMockFollowService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+	record := mocks.FollowRecord{
+		FollowerId: 1,
+		FolloweeId: 2,
+	}
+	mockFollowService.Follow[1] = record
+	context.Params = []gin.Param{
+		{
+			Key:   "followId",
+			Value: "1",
+		},
+	}
+	context.Request, _ = http.NewRequest("DELETE", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+	middlewares.AuthMiddleware()(context)
+	handlers.UnfollowUser(mockFollowService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	if _, ok := mockFollowService.Follow[1]; ok {
+		t.Errorf("Expected follow map to not contain value %d, got %d", 1, mockFollowService.Follow[1])
 	}
 }
