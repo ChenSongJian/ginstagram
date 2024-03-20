@@ -45,7 +45,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			return []byte(jwtSecret), nil
 		})
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Failed to parse token"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 			return
 		}
 
@@ -57,12 +57,6 @@ func AuthMiddleware() gin.HandlerFunc {
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Failed to extract claims"})
-			return
-		}
-
-		expiry := time.Unix(int64(claims["exp"].(float64)), 0)
-		if time.Now().After(expiry) {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Token has expired"})
 			return
 		}
 

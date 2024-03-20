@@ -12,8 +12,360 @@ import (
 	"github.com/ChenSongJian/ginstagram/middlewares"
 	"github.com/ChenSongJian/ginstagram/mocks"
 	"github.com/ChenSongJian/ginstagram/models"
+	"github.com/ChenSongJian/ginstagram/utils"
 	"github.com/gin-gonic/gin"
 )
+
+func TestListComment_MissingToken(t *testing.T) {
+	mockCommentService := mocks.NewMockCommentService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+
+	handlers.ListCommentsByPostId(mockCommentService.UserService, mockCommentService.FollowService,
+		mockCommentService.PostService, mockCommentService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "user not found in token"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestListComment_InvalidPostId(t *testing.T) {
+	mockCommentService := mocks.NewMockCommentService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "postId",
+			Value: "invalid_id",
+		},
+	}
+
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+
+	middlewares.AuthMiddleware()(context)
+	handlers.ListCommentsByPostId(mockCommentService.UserService, mockCommentService.FollowService,
+		mockCommentService.PostService, mockCommentService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "invalid post id"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestListComment_PostNotFound(t *testing.T) {
+	mockCommentService := mocks.NewMockCommentService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "postId",
+			Value: "1",
+		},
+	}
+
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+
+	middlewares.AuthMiddleware()(context)
+	handlers.ListCommentsByPostId(mockCommentService.UserService, mockCommentService.FollowService,
+		mockCommentService.PostService, mockCommentService)(context)
+	if response.Code != http.StatusNotFound {
+		t.Errorf("Expected status code %d, got %d", http.StatusNotFound, response.Code)
+	}
+	expectedResponseBodyString := "post not found"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestListComment_NoPermission(t *testing.T) {
+	mockCommentService := mocks.NewMockCommentService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+	mockCommentService.PostService.Posts[1] = mocks.PostRecord{
+		UserId: 2,
+	}
+	mockCommentService.UserService.Users["test@email.com"] = models.User{
+		Id:        2,
+		IsPrivate: true,
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "postId",
+			Value: "1",
+		},
+	}
+
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+
+	middlewares.AuthMiddleware()(context)
+	handlers.ListCommentsByPostId(mockCommentService.UserService, mockCommentService.FollowService,
+		mockCommentService.PostService, mockCommentService)(context)
+	if response.Code != http.StatusForbidden {
+		t.Errorf("Expected status code %d, got %d", http.StatusForbidden, response.Code)
+	}
+	expectedResponseBodyString := "post is private and you are not following the author"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestListComment_SuccessOwnPost(t *testing.T) {
+	mockCommentService := mocks.NewMockCommentService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+	mockCommentService.PostService.Posts[1] = mocks.PostRecord{
+		UserId: 1,
+	}
+	mockCommentService.Comments[1] = mocks.CommentRecord{
+		PostId: 1,
+	}
+	mockCommentService.Comments[2] = mocks.CommentRecord{
+		PostId: 2,
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "postId",
+			Value: "1",
+		},
+	}
+
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+
+	middlewares.AuthMiddleware()(context)
+	handlers.ListCommentsByPostId(mockCommentService.UserService, mockCommentService.FollowService,
+		mockCommentService.PostService, mockCommentService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	expectedResponseBodyString := "total_records\":1"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestListComment_SuccessPublicPost(t *testing.T) {
+	mockCommentService := mocks.NewMockCommentService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+	mockCommentService.PostService.Posts[1] = mocks.PostRecord{
+		UserId: 2,
+	}
+	mockCommentService.UserService.Users["test@email.com"] = models.User{
+		Id:        2,
+		IsPrivate: false,
+	}
+	mockCommentService.Comments[1] = mocks.CommentRecord{
+		PostId: 1,
+	}
+	mockCommentService.Comments[2] = mocks.CommentRecord{
+		PostId: 2,
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "postId",
+			Value: "1",
+		},
+	}
+
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+
+	middlewares.AuthMiddleware()(context)
+	handlers.ListCommentsByPostId(mockCommentService.UserService, mockCommentService.FollowService,
+		mockCommentService.PostService, mockCommentService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	expectedResponseBodyString := "total_records\":1"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestListComment_SuccessFollowingPost(t *testing.T) {
+	mockCommentService := mocks.NewMockCommentService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+	mockCommentService.PostService.Posts[1] = mocks.PostRecord{
+		UserId: 2,
+	}
+	mockCommentService.UserService.Users["test@email.com"] = models.User{
+		Id:        2,
+		IsPrivate: false,
+	}
+	mockCommentService.FollowService.Follows[1] = mocks.FollowRecord{
+		FollowerId: 1,
+		FolloweeId: 2,
+	}
+	mockCommentService.Comments[1] = mocks.CommentRecord{
+		PostId: 1,
+	}
+	mockCommentService.Comments[2] = mocks.CommentRecord{
+		PostId: 2,
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "postId",
+			Value: "1",
+		},
+	}
+
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+
+	middlewares.AuthMiddleware()(context)
+	handlers.ListCommentsByPostId(mockCommentService.UserService, mockCommentService.FollowService,
+		mockCommentService.PostService, mockCommentService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	expectedResponseBodyString := "total_records\":1"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestListComment_SuccessPagination(t *testing.T) {
+	mockCommentService := mocks.NewMockCommentService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+	mockCommentService.PostService.Posts[1] = mocks.PostRecord{
+		UserId: 2,
+	}
+	mockCommentService.UserService.Users["test@email.com"] = models.User{
+		Id:        2,
+		IsPrivate: false,
+	}
+	mockCommentService.FollowService.Follows[1] = mocks.FollowRecord{
+		FollowerId: 1,
+		FolloweeId: 2,
+	}
+	mockCommentService.Comments[1] = mocks.CommentRecord{
+		PostId: 1,
+	}
+	mockCommentService.Comments[2] = mocks.CommentRecord{
+		PostId: 1,
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "postId",
+			Value: "1",
+		},
+	}
+
+	context.Request, _ = http.NewRequest("GET", "/?pageSize=1&pageNum=2", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+
+	middlewares.AuthMiddleware()(context)
+	handlers.ListCommentsByPostId(mockCommentService.UserService, mockCommentService.FollowService,
+		mockCommentService.PostService, mockCommentService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	var responseBody utils.PageResponse
+	json.Unmarshal(response.Body.Bytes(), &responseBody)
+	if responseBody.TotalRecords != 2 {
+		t.Errorf("Expected total records %d, got %d", 2, responseBody.TotalRecords)
+	}
+	if len(responseBody.Data.([]interface{})) != 1 {
+		t.Errorf("Expected post response length %d", 1)
+	}
+}
 
 func TestCreateComment_MissingToken(t *testing.T) {
 	mockCommentService := mocks.NewMockCommentService()

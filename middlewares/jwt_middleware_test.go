@@ -76,7 +76,7 @@ func TestAuthMiddleware_InvalidToken(t *testing.T) {
 	if response.Code != http.StatusUnauthorized {
 		t.Errorf("Expected status code %d, got %d", http.StatusUnauthorized, response.Code)
 	}
-	expectedResponseBodyString := "Failed to parse token"
+	expectedResponseBodyString := "token contains an invalid number of segments"
 	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
 		t.Errorf("Expected response body to contain %s, got %s", expectedResponseBodyString, response.Body.String())
 	}
