@@ -90,7 +90,7 @@ func TestListFollows_FollowerEmpty(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
 	}
-	expectedResponseBodyString := "\"follows\":null"
+	expectedResponseBodyString := "\"follows\":[]"
 	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
 		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
 	}
@@ -106,7 +106,7 @@ func TestListFollows_FolloweeEmpty(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
 	}
-	expectedResponseBodyString := "\"follows\":null"
+	expectedResponseBodyString := "\"follows\":[]"
 	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
 		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
 	}
@@ -121,7 +121,7 @@ func TestListFollows_FollowerSuccess(t *testing.T) {
 		FollowerId: 1,
 		FolloweeId: 2,
 	}
-	mockFollowService.Follow[1] = record
+	mockFollowService.Follows[1] = record
 
 	context.Request, _ = http.NewRequest("GET", "/?follower_id=1", nil)
 	handlers.ListFollows(mockFollowService)(context)
@@ -142,7 +142,7 @@ func TestListFollows_FolloweeSuccess(t *testing.T) {
 		FollowerId: 1,
 		FolloweeId: 2,
 	}
-	mockFollowService.Follow[1] = record
+	mockFollowService.Follows[1] = record
 
 	context.Request, _ = http.NewRequest("GET", "/?followee_id=2", nil)
 	handlers.ListFollows(mockFollowService)(context)
@@ -317,7 +317,7 @@ func TestFollowUser_AlreadyFollowing(t *testing.T) {
 		FolloweeId: testUser2.Id,
 	}
 
-	mockFollowService.Follow[1] = record
+	mockFollowService.Follows[1] = record
 	token, err := middlewares.GenerateToken(testUser, true)
 	if err != nil {
 		t.Errorf("Error generating token: %v", err)
@@ -386,7 +386,7 @@ func TestFollowUser_Success(t *testing.T) {
 		FolloweeId: testUser2.Id,
 	}
 	found := false
-	for _, v := range mockFollowService.Follow {
+	for _, v := range mockFollowService.Follows {
 		if v == record {
 			found = true
 			break
@@ -518,7 +518,7 @@ func TestUnfollowUser_NotFollower(t *testing.T) {
 		FollowerId: 2,
 		FolloweeId: 1,
 	}
-	mockFollowService.Follow[1] = record
+	mockFollowService.Follows[1] = record
 	context.Params = []gin.Param{
 		{
 			Key:   "followId",
@@ -556,7 +556,7 @@ func TestUnfollowUser_Success(t *testing.T) {
 		FollowerId: 1,
 		FolloweeId: 2,
 	}
-	mockFollowService.Follow[1] = record
+	mockFollowService.Follows[1] = record
 	context.Params = []gin.Param{
 		{
 			Key:   "followId",
@@ -570,7 +570,7 @@ func TestUnfollowUser_Success(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
 	}
-	if _, ok := mockFollowService.Follow[1]; ok {
-		t.Errorf("Expected follow map to not contain value %d, got %d", 1, mockFollowService.Follow[1])
+	if _, ok := mockFollowService.Follows[1]; ok {
+		t.Errorf("Expected follow map to not contain value %d, got %d", 1, mockFollowService.Follows[1])
 	}
 }

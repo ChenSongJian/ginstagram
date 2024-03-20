@@ -28,7 +28,7 @@ func ListFollows(followService services.FollowService) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Either provide follower_id or followee_id, but not both and not neither."})
 			return
 		}
-		var follows []models.Follow
+		var follows = make([]models.Follow, 0)
 		if followerIdStr != "" {
 			var followerId int
 			followerId, err := strconv.Atoi(followerIdStr)

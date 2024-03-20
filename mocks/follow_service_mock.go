@@ -7,13 +7,13 @@ import (
 )
 
 type MockFollowService struct {
-	Follow      map[int]FollowRecord
+	Follows     map[int]FollowRecord
 	UserService MockUserService
 }
 
 func NewMockFollowService() *MockFollowService {
 	return &MockFollowService{
-		Follow:      make(map[int]FollowRecord),
+		Follows:     make(map[int]FollowRecord),
 		UserService: *NewMockUserService(),
 	}
 }
@@ -26,7 +26,7 @@ type FollowRecord struct {
 var followRecordId = 0
 
 func (followService *MockFollowService) GetById(followId int) (models.Follow, error) {
-	if follow, ok := followService.Follow[followId]; ok {
+	if follow, ok := followService.Follows[followId]; ok {
 		return models.Follow{
 			Id:         followId,
 			FollowerId: follow.FollowerId,
@@ -37,8 +37,8 @@ func (followService *MockFollowService) GetById(followId int) (models.Follow, er
 }
 
 func (followService *MockFollowService) GetByFollowerId(followerId int) ([]models.Follow, error) {
-	var result []models.Follow
-	for k, v := range followService.Follow {
+	var result = make([]models.Follow, 0)
+	for k, v := range followService.Follows {
 		if v.FollowerId == followerId {
 			result = append(result, models.Follow{
 				Id:         k,
@@ -51,8 +51,8 @@ func (followService *MockFollowService) GetByFollowerId(followerId int) ([]model
 }
 
 func (followService *MockFollowService) GetByFolloweeId(followeeId int) ([]models.Follow, error) {
-	var result []models.Follow
-	for k, v := range followService.Follow {
+	var result = make([]models.Follow, 0)
+	for k, v := range followService.Follows {
 		if v.FolloweeId == followeeId {
 			result = append(result, models.Follow{
 				Id:         k,
@@ -86,17 +86,17 @@ func (followService *MockFollowService) Create(followerId int, followeeId int) e
 		FolloweeId: followeeId,
 	}
 
-	for _, v := range followService.Follow {
+	for _, v := range followService.Follows {
 		if v == record {
 			return errors.New("ERROR: duplicate key value violates unique constraint \"follows_pkey\"")
 		}
 	}
 	followRecordId++
-	followService.Follow[followRecordId] = record
+	followService.Follows[followRecordId] = record
 	return nil
 }
 
 func (followService *MockFollowService) Delete(followId int) error {
-	delete(followService.Follow, followId)
+	delete(followService.Follows, followId)
 	return nil
 }

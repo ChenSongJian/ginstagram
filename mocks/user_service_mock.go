@@ -70,7 +70,6 @@ func (userService *MockUserService) List(pageNum string, pageSize string, keywor
 		PageSize:     pageSizeInt,
 		TotalPages:   totalPages,
 		TotalRecords: totalRecords,
-		Data:         pagedUsers,
 	}
 
 	return pagedUsers, pageResponse, nil
