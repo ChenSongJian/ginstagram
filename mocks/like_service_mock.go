@@ -7,20 +7,22 @@ import (
 )
 
 type MockLikeService struct {
-	PostLikes     map[int]PostLikeRecord
-	CommentLikes  map[int]CommentLikeRecord
-	UserService   *MockUserService
-	FollowService *MockFollowService
-	PostService   *MockPostService
+	PostLikes      map[int]PostLikeRecord
+	CommentLikes   map[int]CommentLikeRecord
+	UserService    *MockUserService
+	FollowService  *MockFollowService
+	PostService    *MockPostService
+	CommentService *MockCommentService
 }
 
 func NewMockLikeService() *MockLikeService {
 	return &MockLikeService{
-		PostLikes:     make(map[int]PostLikeRecord),
-		CommentLikes:  make(map[int]CommentLikeRecord),
-		UserService:   NewMockUserService(),
-		FollowService: NewMockFollowService(),
-		PostService:   NewMockPostService(),
+		PostLikes:      make(map[int]PostLikeRecord),
+		CommentLikes:   make(map[int]CommentLikeRecord),
+		UserService:    NewMockUserService(),
+		FollowService:  NewMockFollowService(),
+		PostService:    NewMockPostService(),
+		CommentService: NewMockCommentService(),
 	}
 }
 
@@ -91,5 +93,33 @@ func (likeService *MockLikeService) CreatePostLike(userId int, postId int) error
 
 func (likeService *MockLikeService) DeletePostLikeById(postLikeId int) error {
 	delete(likeService.PostLikes, postLikeId)
+	return nil
+}
+
+func (likeService *MockLikeService) CreateCommentLike(commentId int, userId int) error {
+	userFound := false
+	for _, user := range likeService.UserService.Users {
+		if user.Id == userId {
+			userFound = true
+		}
+	}
+	if !userFound {
+		return errors.New("violates foreign key constraint \"comment_likes_user_id_fkey\"")
+	}
+
+	if _, ok := likeService.CommentService.Comments[commentId]; !ok {
+		return errors.New("violates foreign key constraint \"comment_likes_comment_id_fkey\"")
+	}
+
+	for _, like := range likeService.CommentLikes {
+		if like.UserId == userId && like.CommentId == commentId {
+			return errors.New("violates unique constraint \"unique_comment_user_pair\"")
+		}
+	}
+	commentRecordId++
+	likeService.CommentLikes[commentRecordId] = CommentLikeRecord{
+		UserId:    userId,
+		CommentId: commentId,
+	}
 	return nil
 }
