@@ -65,3 +65,44 @@ func LikePost(userService services.UserService, followService services.FollowSer
 
 	}
 }
+
+func UnlikePost(userService services.UserService, followService services.FollowService,
+	postService services.PostService, likeService services.LikeService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tokenUser, exists := c.Get("tokenUser")
+		if !exists {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "user not found in token"})
+			return
+		}
+		modelTokenUser, ok := tokenUser.(models.User)
+		if !ok {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid token user type"})
+			return
+		}
+		postLikeIdStr := c.Param("postLikeId")
+		postLikeId, err := strconv.Atoi(postLikeIdStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid post like id"})
+			return
+		}
+		var postLike models.PostLike
+		postLike, err = likeService.GetByPostLikeId(postLikeId)
+		if err != nil {
+			if err.Error() == "record not found" {
+				c.JSON(http.StatusNotFound, gin.H{"error": "post like not found"})
+				return
+			}
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if postLike.UserId != modelTokenUser.Id {
+			c.JSON(http.StatusForbidden, gin.H{"error": "no permission to unlike"})
+			return
+		}
+		if err := likeService.DeletePostLikeById(postLikeId); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "like deleted successfully"})
+	}
+}

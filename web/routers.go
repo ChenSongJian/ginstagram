@@ -56,6 +56,7 @@ func NewRouter() *gin.Engine {
 	postV1Group.POST("/", middlewares.AuthMiddleware(), handlers.CreatePost(postService, mediaService))
 	postV1Group.DELETE("/:postId", middlewares.AuthMiddleware(), handlers.DeletePost(postService, mediaService))
 	postV1Group.POST("/:postId/like", middlewares.AuthMiddleware(), handlers.LikePost(userService, followService, postService, likeService))
+	postV1Group.DELETE("/post_like/:postLikeId", middlewares.AuthMiddleware(), handlers.UnlikePost(userService, followService, postService, likeService))
 
 	postV1Group.GET("/:postId/comment", middlewares.AuthMiddleware(), handlers.ListCommentsByPostId(userService, followService, postService, commentService))
 	postV1Group.POST("/:postId/comment", middlewares.AuthMiddleware(), handlers.CreateComment(userService, followService, postService, commentService))

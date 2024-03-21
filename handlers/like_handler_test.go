@@ -399,3 +399,185 @@ func TestLikePost_DuplicatedLike(t *testing.T) {
 		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
 	}
 }
+
+func TestUnlikePost_MissingToken(t *testing.T) {
+	mockLikeService := mocks.NewMockLikeService()
+
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	context.Request, _ = http.NewRequest("DELETE", "/", nil)
+
+	handlers.UnlikePost(mockLikeService.UserService, mockLikeService.FollowService,
+		mockLikeService.PostService, mockLikeService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "user not found in token"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestUnlikePost_InvalidPostLikeId(t *testing.T) {
+	mockLikeService := mocks.NewMockLikeService()
+
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "postLikeId",
+			Value: "invalid_id",
+		},
+	}
+
+	context.Request, _ = http.NewRequest("DELETE", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+
+	middlewares.AuthMiddleware()(context)
+	handlers.UnlikePost(mockLikeService.UserService, mockLikeService.FollowService,
+		mockLikeService.PostService, mockLikeService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "invalid post like id"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestUnlikePost_PostLikeNotFound(t *testing.T) {
+	mockLikeService := mocks.NewMockLikeService()
+
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "postLikeId",
+			Value: "1",
+		},
+	}
+
+	context.Request, _ = http.NewRequest("DELETE", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+
+	middlewares.AuthMiddleware()(context)
+	handlers.UnlikePost(mockLikeService.UserService, mockLikeService.FollowService,
+		mockLikeService.PostService, mockLikeService)(context)
+	if response.Code != http.StatusNotFound {
+		t.Errorf("Expected status code %d, got %d", http.StatusNotFound, response.Code)
+	}
+	expectedResponseBodyString := "post like not found"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestUnlikePost_NoPermission(t *testing.T) {
+	mockLikeService := mocks.NewMockLikeService()
+
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+	mockLikeService.PostLikes[1] = mocks.PostLikeRecord{
+		UserId: 2,
+		PostId: 1,
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "postLikeId",
+			Value: "1",
+		},
+	}
+
+	context.Request, _ = http.NewRequest("DELETE", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+
+	middlewares.AuthMiddleware()(context)
+	handlers.UnlikePost(mockLikeService.UserService, mockLikeService.FollowService,
+		mockLikeService.PostService, mockLikeService)(context)
+	if response.Code != http.StatusForbidden {
+		t.Errorf("Expected status code %d, got %d", http.StatusForbidden, response.Code)
+	}
+	expectedResponseBodyString := "no permission to unlike"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestUnlikePost_Success(t *testing.T) {
+	mockLikeService := mocks.NewMockLikeService()
+
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+	mockLikeService.PostLikes[1] = mocks.PostLikeRecord{
+		UserId: 1,
+		PostId: 1,
+	}
+
+	context.Params = []gin.Param{
+		{
+			Key:   "postLikeId",
+			Value: "1",
+		},
+	}
+
+	context.Request, _ = http.NewRequest("DELETE", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+
+	middlewares.AuthMiddleware()(context)
+	handlers.UnlikePost(mockLikeService.UserService, mockLikeService.FollowService,
+		mockLikeService.PostService, mockLikeService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	if _, ok := mockLikeService.PostLikes[1]; ok {
+		t.Errorf("Post like not deleted")
+	}
+}

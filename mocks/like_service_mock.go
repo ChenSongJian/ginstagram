@@ -1,6 +1,10 @@
 package mocks
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/ChenSongJian/ginstagram/models"
+)
 
 type MockLikeService struct {
 	PostLikes     map[int]PostLikeRecord
@@ -32,6 +36,16 @@ type CommentLikeRecord struct {
 var PostLikeRecordId = 0
 var CommentLikeRecordId = 0
 
+func (likeService *MockLikeService) GetByPostLikeId(postLikeId int) (models.PostLike, error) {
+	if like, ok := likeService.PostLikes[postLikeId]; ok {
+		return models.PostLike{
+			UserId: like.UserId,
+			PostId: like.PostId,
+		}, nil
+	}
+	return models.PostLike{}, errors.New("record not found")
+}
+
 func (likeService *MockLikeService) CreatePostLike(userId int, postId int) error {
 	userFound := false
 	for _, user := range likeService.UserService.Users {
@@ -58,5 +72,10 @@ func (likeService *MockLikeService) CreatePostLike(userId int, postId int) error
 		UserId: userId,
 		PostId: postId,
 	}
+	return nil
+}
+
+func (likeService *MockLikeService) DeletePostLikeById(postLikeId int) error {
+	delete(likeService.PostLikes, postLikeId)
 	return nil
 }
