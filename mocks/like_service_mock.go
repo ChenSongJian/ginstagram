@@ -96,6 +96,16 @@ func (likeService *MockLikeService) DeletePostLikeById(postLikeId int) error {
 	return nil
 }
 
+func (likeService *MockLikeService) GetByCommentLikeId(commentLikeId int) (models.CommentLike, error) {
+	if like, ok := likeService.CommentLikes[commentLikeId]; ok {
+		return models.CommentLike{
+			UserId:    like.UserId,
+			CommentId: like.CommentId,
+		}, nil
+	}
+	return models.CommentLike{}, errors.New("record not found")
+}
+
 func (likeService *MockLikeService) CreateCommentLike(commentId int, userId int) error {
 	userFound := false
 	for _, user := range likeService.UserService.Users {
@@ -121,5 +131,10 @@ func (likeService *MockLikeService) CreateCommentLike(commentId int, userId int)
 		UserId:    userId,
 		CommentId: commentId,
 	}
+	return nil
+}
+
+func (likeService *MockLikeService) DeleteCommentLikeById(commentLikeId int) error {
+	delete(likeService.CommentLikes, commentLikeId)
 	return nil
 }

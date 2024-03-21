@@ -12,7 +12,9 @@ type LikeService interface {
 	CreatePostLike(postId int, userId int) error
 	DeletePostLikeById(postLikeId int) error
 
+	GetByCommentLikeId(commentId int) (models.CommentLike, error)
 	CreateCommentLike(commentId int, userId int) error
+	DeleteCommentLikeById(commentLikeId int) error
 }
 
 type DBLikeService struct {
@@ -43,6 +45,16 @@ func (likeService *DBLikeService) DeletePostLikeById(postLikeId int) error {
 	return likeService.db.Delete(&models.PostLike{}, postLikeId).Error
 }
 
+func (likeService *DBLikeService) GetByCommentLikeId(commentId int) (models.CommentLike, error) {
+	var commentLike models.CommentLike
+	err := likeService.db.First(&commentLike, commentId).Error
+	return commentLike, err
+}
+
 func (likeService *DBLikeService) CreateCommentLike(commentId int, userId int) error {
 	return likeService.db.Create(&models.CommentLike{CommentId: commentId, UserId: userId}).Error
+}
+
+func (likeService *DBLikeService) DeleteCommentLikeById(commentLikeId int) error {
+	return likeService.db.Delete(&models.CommentLike{}, commentLikeId).Error
 }
