@@ -36,6 +36,20 @@ type CommentLikeRecord struct {
 var PostLikeRecordId = 0
 var CommentLikeRecordId = 0
 
+func (likeService *MockLikeService) ListPostLikesByPostId(postId int) ([]models.PostLike, error) {
+	var postLikes []models.PostLike
+	for k, like := range likeService.PostLikes {
+		if like.PostId == postId {
+			postLikes = append(postLikes, models.PostLike{
+				Id:     k,
+				UserId: like.UserId,
+				PostId: like.PostId,
+			})
+		}
+	}
+	return postLikes, nil
+}
+
 func (likeService *MockLikeService) GetByPostLikeId(postLikeId int) (models.PostLike, error) {
 	if like, ok := likeService.PostLikes[postLikeId]; ok {
 		return models.PostLike{

@@ -37,11 +37,10 @@ func (commentService *DBCommentService) ListByPostId(postId int, pageNum string,
 	offset := (pageNumInt - 1) * pageSizeInt
 
 	var comments []models.Comment
-	query := commentService.db.Where("post_id = ?", postId).Order("created_at desc").Offset(offset).Limit(pageSizeInt)
-	query.Find(&comments)
-
+	query := commentService.db.Where("post_id = ?", postId).Find(&comments)
 	var totalCount int64
-	query.Count(&totalCount)
+	query.Count(&totalCount).Order("created_at desc").Offset(offset).Limit(pageSizeInt)
+	query.Find(&comments)
 	totalPages := int(math.Ceil(float64(totalCount) / float64(pageSizeInt)))
 	pageResponse := utils.PageResponse{
 		PageNum:      pageNumInt,

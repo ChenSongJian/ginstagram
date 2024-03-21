@@ -61,23 +61,23 @@ func ListCommentsByPostId(userService services.UserService, followService servic
 		}
 		pageNum := c.Query("pageNum")
 		pageSize := c.Query("pageSize")
-		comment, pageInfo, err := commentService.ListByPostId(postId, pageNum, pageSize)
+		comments, pageInfo, err := commentService.ListByPostId(postId, pageNum, pageSize)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		comments := make([]CommentResponse, 0)
-		for _, comment := range comment {
+		commentResponses := make([]CommentResponse, 0)
+		for _, comment := range comments {
 			var user models.User
 			user, _ = userService.GetById(comment.UserId)
-			comments = append(comments, CommentResponse{
+			commentResponses = append(commentResponses, CommentResponse{
 				Id:        comment.Id,
 				Content:   comment.Content,
 				CreatedAt: comment.CreatedAt.Format("2006-01-02 15:04:05"),
 				UserId:    user.Id,
 			})
 		}
-		pageInfo.Data = comments
+		pageInfo.Data = commentResponses
 		c.JSON(http.StatusOK, pageInfo)
 	}
 }

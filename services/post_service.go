@@ -49,8 +49,10 @@ func (postService *DBPostService) List(pageNum string, pageSize string, keyword 
 	if keyword != "" {
 		query = query.Where("title LIKE ? OR content LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
 	}
-	query = query.Where("user_id IN ?", filterUserIds).Order("created_at desc").Offset(offset).Limit(pageSizeInt)
-	query.Find(&posts)
+	query = query.Where("user_id IN ?", filterUserIds).Find(&posts)
+	var totalCount int64
+	query.Count(&totalCount)
+	query.Order("created_at desc").Offset(offset).Limit(pageSizeInt).Find(&posts)
 	var postIds []int
 	for _, post := range posts {
 		postIds = append(postIds, post.Id)
@@ -63,8 +65,6 @@ func (postService *DBPostService) List(pageNum string, pageSize string, keyword 
 			mediaMap[m.PostId] = append(mediaMap[m.PostId], m)
 		}
 	}
-	var totalCount int64
-	query.Count(&totalCount)
 	totalPages := int(math.Ceil(float64(totalCount) / float64(pageSizeInt)))
 	pageResponse := utils.PageResponse{
 		PageNum:      pageNumInt,
@@ -103,8 +103,10 @@ func (postService *DBPostService) ListByUserId(userId int, pageNum string, pageS
 	if keyword != "" {
 		query = query.Where("title LIKE ? OR content LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
 	}
-	query = query.Where("user_id IN ?", filterUserIds).Order("created_at desc").Offset(offset).Limit(pageSizeInt)
-	query.Find(&posts)
+	query = query.Where("user_id IN ?", filterUserIds).Find(&posts)
+	var totalCount int64
+	query.Count(&totalCount)
+	query.Order("created_at desc").Offset(offset).Limit(pageSizeInt).Find(&posts)
 	var postIds []int
 	for _, post := range posts {
 		postIds = append(postIds, post.Id)
@@ -117,8 +119,6 @@ func (postService *DBPostService) ListByUserId(userId int, pageNum string, pageS
 			mediaMap[m.PostId] = append(mediaMap[m.PostId], m)
 		}
 	}
-	var totalCount int64
-	query.Count(&totalCount)
 	totalPages := int(math.Ceil(float64(totalCount) / float64(pageSizeInt)))
 	pageResponse := utils.PageResponse{
 		PageNum:      pageNumInt,

@@ -96,7 +96,10 @@ func (postService *MockPostService) List(pageNum string, pageSize string, keywor
 	}
 
 	if offset >= totalCount {
-		return []models.Post{}, map[int][]models.Media{}, utils.PageResponse{}, nil
+		return []models.Post{}, map[int][]models.Media{}, utils.PageResponse{
+			TotalPages:   totalPages,
+			TotalRecords: totalCount,
+		}, nil
 	}
 
 	startIndex := offset
@@ -184,7 +187,10 @@ func (postService *MockPostService) ListByUserId(userId int, pageNum string, pag
 	}
 
 	if offset >= totalCount {
-		return []models.Post{}, map[int][]models.Media{}, utils.PageResponse{}, nil
+		return []models.Post{}, map[int][]models.Media{}, utils.PageResponse{
+			TotalPages:   totalPages,
+			TotalRecords: totalCount,
+		}, nil
 	}
 
 	startIndex := offset

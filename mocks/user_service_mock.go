@@ -54,7 +54,10 @@ func (userService *MockUserService) List(pageNum string, pageSize string, keywor
 	}
 
 	if offset >= totalRecords {
-		return []models.User{}, utils.PageResponse{}, nil
+		return []models.User{}, utils.PageResponse{
+			TotalPages:   totalPages,
+			TotalRecords: totalRecords,
+		}, nil
 	}
 
 	startIndex := offset

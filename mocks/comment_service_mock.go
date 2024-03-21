@@ -62,7 +62,10 @@ func (mockCommentService *MockCommentService) ListByPostId(postId int, pageNum s
 	}
 
 	if offset >= totalCount {
-		return []models.Comment{}, utils.PageResponse{}, nil
+		return []models.Comment{}, utils.PageResponse{
+			TotalPages:   totalPages,
+			TotalRecords: totalCount,
+		}, nil
 	}
 
 	startIndex := offset

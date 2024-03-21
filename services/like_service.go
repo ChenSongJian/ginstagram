@@ -7,6 +7,7 @@ import (
 )
 
 type LikeService interface {
+	ListPostLikesByPostId(postId int) ([]models.PostLike, error)
 	GetByPostLikeId(postLikeId int) (models.PostLike, error)
 	CreatePostLike(postId int, userId int) error
 	DeletePostLikeById(postLikeId int) error
@@ -20,9 +21,15 @@ func NewDBLikeService() *DBLikeService {
 	return &DBLikeService{db: db.DB}
 }
 
+func (likeService *DBLikeService) ListPostLikesByPostId(postId int) ([]models.PostLike, error) {
+	var postLikes []models.PostLike
+	err := likeService.db.Where("post_id = ?", postId).Find(&postLikes).Error
+	return postLikes, err
+}
+
 func (likeService *DBLikeService) GetByPostLikeId(postLikeId int) (models.PostLike, error) {
 	var postLike models.PostLike
-	err := likeService.db.First(postLike, postLikeId).Error
+	err := likeService.db.First(&postLike, postLikeId).Error
 	return postLike, err
 }
 
