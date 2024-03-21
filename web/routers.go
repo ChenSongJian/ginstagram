@@ -34,6 +34,10 @@ func NewRouter() *gin.Engine {
 	initServices()
 
 	apiV1Group := r.Group("/api/v1")
+
+	uploadV1Group := apiV1Group.Group("/upload")
+	uploadV1Group.POST("/", middlewares.AuthMiddleware(), handlers.UploadMedia)
+
 	userV1Group := apiV1Group.Group("/user")
 	userV1Group.POST("/", handlers.RegisterUser(userService))
 	userV1Group.GET("/", handlers.ListUsers(userService))
