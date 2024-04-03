@@ -4,6 +4,7 @@ import (
 	"github.com/ChenSongJian/ginstagram/handlers"
 	"github.com/ChenSongJian/ginstagram/middlewares"
 	"github.com/ChenSongJian/ginstagram/services"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -25,6 +26,10 @@ func initServices() {
 
 func NewRouter() *gin.Engine {
 	r := gin.Default()
+
+	corsConfig := middlewares.NewCorsConfig()
+	r.Use(cors.New(corsConfig))
+
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"message": "pong",
@@ -54,7 +59,7 @@ func NewRouter() *gin.Engine {
 	followV1Group.DELETE("/:followId", middlewares.AuthMiddleware(), handlers.UnfollowUser(followService))
 
 	postV1Group := apiV1Group.Group("/post")
-	postV1Group.GET("/public", handlers.ListPublicPosts(postService, mediaService))
+	// postV1Group.GET("/public", handlers.ListPublicPosts(postService, mediaService))
 	postV1Group.GET("/", middlewares.AuthMiddleware(), handlers.ListPosts(postService, mediaService))
 	postV1Group.GET("/:postId", handlers.GetPostById(userService, followService, postService, mediaService))
 	postV1Group.POST("/", middlewares.AuthMiddleware(), handlers.CreatePost(postService, mediaService))
