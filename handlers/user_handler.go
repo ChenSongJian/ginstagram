@@ -220,6 +220,39 @@ func DeleteUser(userService services.UserService) gin.HandlerFunc {
 	}
 }
 
+func GetCurrentUserInfo(userService services.UserService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tokenUser, exists := c.Get("tokenUser")
+		if !exists {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "user not found in token"})
+			return
+		}
+		modelTokenUser, ok := tokenUser.(models.User)
+		if !ok {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid token user type"})
+			return
+		}
+		user, err := userService.GetById(modelTokenUser.Id)
+		if err != nil {
+			if strings.Contains(err.Error(), "record not found") {
+				c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		userResponse := UserResponse{
+			Id:              user.Id,
+			Username:        user.Username,
+			Email:           user.Email,
+			Bio:             user.Bio,
+			ProfileImageUrl: user.ProfileImageUrl,
+			IsPrivate:       user.IsPrivate,
+		}
+		c.JSON(http.StatusOK, userResponse)
+	}
+}
+
 func LoginUser(userService services.UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req UserLoginReq

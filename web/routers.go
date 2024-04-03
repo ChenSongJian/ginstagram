@@ -49,6 +49,7 @@ func NewRouter() *gin.Engine {
 	userV1Group.GET("/:userId", handlers.GetUserById(userService))
 	userV1Group.PUT("/:userId", middlewares.AuthMiddleware(), handlers.UpdateUser(userService))
 	userV1Group.DELETE("/:userId", middlewares.AuthMiddleware(), handlers.DeleteUser(userService))
+	userV1Group.GET("/info", middlewares.AuthMiddleware(), handlers.GetCurrentUserInfo(userService))
 	userV1Group.POST("/login", handlers.LoginUser(userService))
 	userV1Group.POST("/logout", middlewares.AuthMiddleware(), handlers.LogoutUser(userService))
 	userV1Group.GET("/refresh", middlewares.AuthMiddleware(), handlers.RefreshToken(userService))

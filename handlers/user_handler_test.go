@@ -757,6 +757,91 @@ func TestDeleteUser_Success(t *testing.T) {
 	}
 }
 
+func TestGetCurrentUserInfo_MissingToken(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+
+	handlers.GetCurrentUserInfo(mockUserService)(context)
+	if response.Code != http.StatusBadRequest {
+		t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	expectedResponseBodyString := "user not found in token"
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestGetCurrentUserInfo_UserNotFound(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+	middlewares.AuthMiddleware()(context)
+	handlers.GetCurrentUserInfo(mockUserService)(context)
+	if response.Code != http.StatusNotFound {
+		t.Errorf("Expected status code %d, got %d", http.StatusNotFound, response.Code)
+	}
+	expectedResponseBodyString := "user not found\""
+	if !strings.Contains(response.Body.String(), expectedResponseBodyString) {
+		t.Errorf("Expected response body %s, got %s", expectedResponseBodyString, response.Body.String())
+	}
+}
+
+func TestGetCurrentUserInfo_Success(t *testing.T) {
+	mockUserService := mocks.NewMockUserService()
+	response := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(response)
+
+	testUser := models.User{
+		Id:       1,
+		Username: "test",
+		Email:    "test@test.com",
+	}
+	mockUserService.Users[testUser.Email] = testUser
+	token, err := middlewares.GenerateToken(testUser, true)
+	if err != nil {
+		t.Errorf("Error generating token: %v", err)
+		return
+	}
+	context.Request, _ = http.NewRequest("GET", "/", nil)
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+	middlewares.AuthMiddleware()(context)
+	handlers.GetCurrentUserInfo(mockUserService)(context)
+	if response.Code != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.Code)
+	}
+	var userResponse handlers.UserResponse
+	err = json.Unmarshal(response.Body.Bytes(), &userResponse)
+	if err != nil {
+		t.Errorf("Error unmarshaling response body: %v", err)
+		return
+	}
+	if userResponse.Id != testUser.Id {
+		t.Errorf("Expected user id %d, got %d", testUser.Id, userResponse.Id)
+	}
+	if userResponse.Username != testUser.Username {
+		t.Errorf("Expected user username %s, got %s", testUser.Username, userResponse.Username)
+	}
+	if userResponse.Email != testUser.Email {
+		t.Errorf("Expected user email %s, got %s", testUser.Email, userResponse.Email)
+	}
+}
+
 func TestLoginUser_MissingRequiredField(t *testing.T) {
 	mockUserService := mocks.NewMockUserService()
 	response := httptest.NewRecorder()
